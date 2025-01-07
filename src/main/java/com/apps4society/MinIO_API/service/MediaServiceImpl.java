@@ -20,7 +20,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -41,7 +41,7 @@ public class MediaServiceImpl implements MediaService {
     }
 
     @Override
-    public MediaDTO saveMedia(MultipartFile file, Long entityId, EntityType entityType, Long uploadedBy) {
+    public MediaDTO saveMedia(MultipartFile file, Long mediaIdentifier, EntityType entityType, Long uploadedBy) {
         if (file == null || file.isEmpty()) {
             throw new InvalidInputException("O arquivo enviado está vazio ou inválido.");
         }
@@ -50,12 +50,12 @@ public class MediaServiceImpl implements MediaService {
             throw new IllegalArgumentException("O nome do bucket não foi configurado corretamente.");
         }
 
-
         try {
             String objectName = file.getOriginalFilename();
             log.info("Recebendo arquivo com o nome: {}", objectName);
 
-            MediaType mediaType = determineMediaType(file.getContentType());
+            MediaType mediaType = determineMediaType(objectName);
+
             if (mediaType == null) {
                 throw new InvalidInputException("Tipo de mídia não suportado: " + file.getContentType());
             }
@@ -87,13 +87,13 @@ public class MediaServiceImpl implements MediaService {
                     .url(url)
                     .mediaType(mediaType)
                     .uploadDate(LocalDateTime.now())
-                    .entityId(entityId)
+                    .mediaIdentifier(mediaIdentifier)
                     .entityType(entityType)
                     .uploadedBy(uploadedBy)
                     .build();
 
             Media savedMedia = mediaRepository.save(media);
-            log.info("Mídia salva no banco com ID: {}", savedMedia.getMidiaId());
+            log.info("Mídia salva no banco com ID: {}", savedMedia.getId());
 
             return mediaMapper.entityToDto(savedMedia);
 
@@ -112,50 +112,33 @@ public class MediaServiceImpl implements MediaService {
         }
     }
 
-    private MediaType determineMediaType(String contentType) {
-        if (contentType == null) {
-            throw new InvalidInputException("O tipo de conteúdo do arquivo é nulo.");
+    private MediaType determineMediaType(String fileName) {
+        if (fileName == null || !fileName.contains(".")) {
+            throw new InvalidInputException("O arquivo não possui uma extensão válida.");
         }
-        if (contentType.startsWith("image/")) {
-            return MediaType.IMAGE;
-        } else if (contentType.startsWith("video/")) {
-            return MediaType.VIDEO;
-        } else if (contentType.startsWith("audio/")) {
-            return MediaType.AUDIO;
+
+        String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+        MediaType mediaType = EXTENSION_TO_MEDIA_TYPE_MAP.get(extension);
+
+        if (mediaType == null) {
+            throw new InvalidInputException("Tipo de mídia não suportado para a extensão: " + extension);
         }
-        throw new InvalidInputException("Tipo de mídia não suportado: " + contentType);
+
+        return mediaType;
     }
 
     @Override
-    public List<MediaDTO> getMediaByUploader(Long uploadedBy) {
-        List<Media> mediaList = mediaRepository.findByUploadedBy(uploadedBy);
-        if (mediaList.isEmpty()) {
-            throw new ResourceNotFoundException("Nenhuma mídia encontrada para o usuário com ID: " + uploadedBy);
-        }
-        return mediaList.stream()
-                .map(mediaMapper::entityToDto)
-                .toList();
+    public MediaDTO getMediaById(Long id, EntityType entityType) {
+        Media media = mediaRepository.findByIdAndEntityType(id, entityType)
+                .orElseThrow(() -> new ResourceNotFoundException("Mídia não encontrada para o ID e tipo especificados."));
+        return mediaMapper.entityToDto(media);
     }
 
-    @Override
-    public List<String> getURLsOfThemeImages(Long themeId) {
-        List<Media> mediaList = mediaRepository.findAllByEntityIdAndEntityTypeAndMediaType(themeId, EntityType.THEME, MediaType.IMAGE);
-        if (mediaList.isEmpty()) {
-            throw new ResourceNotFoundException("Nenhuma imagem encontrada para o tema com ID: " + themeId);
-        }
-        return mediaList.stream()
-                .map(Media::getUrl)
-                .toList();
-    }
-
-    @Override
-    public List<String> getURLsOfChallengeImages(Long challengeId) {
-        List<Media> mediaList = mediaRepository.findAllByEntityIdAndEntityTypeAndMediaType(challengeId, EntityType.CHALLENGE, MediaType.IMAGE);
-        if (mediaList.isEmpty()) {
-            throw new ResourceNotFoundException("Nenhuma imagem encontrada para o desafio com ID: " + challengeId);
-        }
-        return mediaList.stream()
-                .map(Media::getUrl)
-                .toList();
-    }
+    private static final Map<String, MediaType> EXTENSION_TO_MEDIA_TYPE_MAP = Map.of(
+            "jpg", MediaType.IMAGE,
+            "jpeg", MediaType.IMAGE,
+            "png", MediaType.IMAGE,
+            "mp4", MediaType.VIDEO,
+            "mp3", MediaType.AUDIO
+    );
 }

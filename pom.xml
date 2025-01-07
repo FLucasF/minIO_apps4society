@@ -104,6 +104,7 @@
 				<configuration>
 					<source>21</source> <!-- Certifique-se de que corresponde à sua versão do Java -->
 					<target>21</target>
+					<encoding>UTF-8</encoding>
 					<annotationProcessorPaths>
 						<!-- Lombok -->
 						<path>

@@ -14,10 +14,10 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class MediaDTO {
     private Long id;
-    private String url;
+    private Long mediaIdentifier;
     private MediaType mediaType;
-    private Long entityId;
     private EntityType entityType;
     private Long uploadedBy;
     private LocalDateTime uploadDate;
+    private String url;
 }

@@ -22,12 +22,12 @@ public class Media {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "media_id")
-    private Long midiaId;
+    @Column(name = "id")
+    private Long id;
 
-    @NotNull(message = "O ID da entidade é obrigatório.")
-    @Column(name = "entity_id", nullable = false)
-    private Long entityId;
+    @NotNull(message = "O ID do arquivo é obrigatório.")
+    @Column(name = "mediaIdentifier", nullable = false, unique = true)
+    private Long mediaIdentifier;
 
     @NotNull(message = "O tipo da entidade é obrigatório.")
     @Enumerated(EnumType.STRING)
