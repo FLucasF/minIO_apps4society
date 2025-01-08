@@ -1,4 +1,4 @@
-package com.apps4society.MinIO_API.config.minioConfig;
+package com.apps4society.MinIO_API.config;
 
 import io.minio.MinioClient;
 import org.springframework.beans.factory.annotation.Value;
