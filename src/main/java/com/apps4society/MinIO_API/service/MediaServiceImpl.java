@@ -1,6 +1,6 @@
 package com.apps4society.MinIO_API.service;
 
-import com.apps4society.MinIO_API.Mapper.MediaMapper;
+import com.apps4society.MinIO_API.mapper.MediaMapper;
 import com.apps4society.MinIO_API.exceptions.*;
 import com.apps4society.MinIO_API.model.DTO.MediaDTO;
 import com.apps4society.MinIO_API.model.entity.Media;
@@ -60,7 +60,6 @@ public class MediaServiceImpl implements MediaService {
                 throw new InvalidInputException("Tipo de mídia não suportado: " + file.getContentType());
             }
 
-            // Upload para o MinIO
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
@@ -71,7 +70,6 @@ public class MediaServiceImpl implements MediaService {
             );
             log.info("Arquivo enviado para o MinIO com sucesso.");
 
-            // Gerar URL do arquivo no MinIO
             String url = minioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
@@ -82,7 +80,6 @@ public class MediaServiceImpl implements MediaService {
             );
             log.info("URL gerada: {}", url);
 
-            // Salvar no banco de dados
             Media media = Media.builder()
                     .url(url)
                     .mediaType(mediaType)
@@ -133,6 +130,63 @@ public class MediaServiceImpl implements MediaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Mídia não encontrada para o ID e tipo especificados."));
         return mediaMapper.entityToDto(media);
     }
+
+    @Override
+    public MediaDTO updateMedia(Long id, MultipartFile file, Long uploadedBy) {
+        if (file == null || file.isEmpty()) {
+            throw new InvalidInputException("O arquivo enviado está vazio ou inválido.");
+        }
+
+        Media existingMedia = mediaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Mídia não encontrada com ID: " + id));
+
+        try {
+            String objectName = file.getOriginalFilename();
+            log.info("Atualizando arquivo com o nome: {}", objectName);
+
+            MediaType newMediaType = determineMediaType(objectName);
+
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .stream(file.getInputStream(), file.getSize(), -1)
+                            .contentType(file.getContentType())
+                            .build()
+            );
+            log.info("Arquivo atualizado no MinIO com sucesso.");
+
+            String url = minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .expiry(2, TimeUnit.HOURS)
+                            .build()
+            );
+
+            existingMedia.setUrl(url);
+            existingMedia.setUploadDate(LocalDateTime.now());
+            existingMedia.setMediaType(newMediaType);
+            existingMedia.setUploadedBy(uploadedBy);
+
+            Media updatedMedia = mediaRepository.save(existingMedia);
+            log.info("Mídia atualizada no banco com sucesso.");
+
+            return mediaMapper.entityToDto(updatedMedia);
+
+        } catch (IOException e) {
+            log.error("Erro ao processar o arquivo: {}", e.getMessage(), e);
+            throw new ExternalServiceException("Erro ao processar o arquivo enviado.", e);
+        } catch (MinioException e) {
+            log.error("Erro ao interagir com o MinIO: {}", e.getMessage(), e);
+            throw new ExternalServiceException("Erro ao atualizar o arquivo no MinIO.", e);
+        } catch (Exception e) {
+            log.error("Erro inesperado ao atualizar a mídia: {}", e.getMessage(), e);
+            throw new GenericServiceException("Erro inesperado ao atualizar a mídia.", e);
+        }
+    }
+
 
     private static final Map<String, MediaType> EXTENSION_TO_MEDIA_TYPE_MAP = Map.of(
             "jpg", MediaType.IMAGE,

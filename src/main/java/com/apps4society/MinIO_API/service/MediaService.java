@@ -8,4 +8,5 @@ import org.springframework.web.multipart.MultipartFile;
 public interface MediaService {
     MediaDTO saveMedia(MultipartFile file, Long entityId, EntityType entityType, Long uploadedBy);
     MediaDTO getMediaById(Long mediaId, EntityType entityType);
+    MediaDTO updateMedia(Long id, MultipartFile file, Long uploadedBy);
 }

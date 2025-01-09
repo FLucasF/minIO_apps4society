@@ -1,4 +1,4 @@
-package com.apps4society.MinIO_API.Mapper;
+package com.apps4society.MinIO_API.mapper;
 
 import com.apps4society.MinIO_API.model.DTO.MediaDTO;
 import com.apps4society.MinIO_API.model.entity.Media;

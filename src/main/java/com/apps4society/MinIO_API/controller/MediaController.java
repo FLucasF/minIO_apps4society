@@ -42,5 +42,15 @@ public class MediaController {
         return ResponseEntity.ok(media);
     }
 
+    //https://localhost:8080/api/media/{id}/update?uploadedBy={uploadedBy}
+    @PutMapping("/{id}/update")
+    public ResponseEntity<MediaDTO> updateMedia(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestParam("uploadedBy") Long uploadedBy) {
+        log.info("Atualizando a mídia com ID {}", id);
+        MediaDTO updatedMedia = mediaService.updateMedia(id, file, uploadedBy);
+        return ResponseEntity.ok(updatedMedia);
+    }
 }
 

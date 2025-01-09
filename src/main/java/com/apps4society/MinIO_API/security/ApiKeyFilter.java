@@ -29,13 +29,11 @@ public class ApiKeyFilter extends GenericFilterBean {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         String requestApiKey = httpRequest.getHeader("x-api-key");
 
-        // Verifica se a API Key é válida
         if (requestApiKey == null || !requestApiKey.equals(apiKey)) {
             ((HttpServletResponse) response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "API Key inválida ou ausente.");
             return;
         }
 
-        // Configura autenticação manual no contexto de segurança
         User authenticatedUser = new User("api-key-user", "", Collections.emptyList());
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(authenticatedUser, null, authenticatedUser.getAuthorities());
