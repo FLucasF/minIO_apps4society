@@ -109,26 +109,13 @@ public class MediaServiceImpl implements MediaService {
         }
     }
 
-    private MediaType determineMediaType(String fileName) {
-        if (fileName == null || !fileName.contains(".")) {
-            throw new InvalidInputException("O arquivo não possui uma extensão válida.");
-        }
-
-        String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
-        MediaType mediaType = EXTENSION_TO_MEDIA_TYPE_MAP.get(extension);
-
-        if (mediaType == null) {
-            throw new InvalidInputException("Tipo de mídia não suportado para a extensão: " + extension);
-        }
-
-        return mediaType;
-    }
-
     @Override
     public MediaDTO getMediaById(Long id, EntityType entityType) {
         Media media = mediaRepository.findByIdAndEntityType(id, entityType)
                 .orElseThrow(() -> new ResourceNotFoundException("Mídia não encontrada para o ID e tipo especificados."));
-        return mediaMapper.entityToDto(media);
+        return  MediaDTO.builder()
+                .url(media.getUrl())
+                .build();
     }
 
     @Override
@@ -187,6 +174,20 @@ public class MediaServiceImpl implements MediaService {
         }
     }
 
+    private MediaType determineMediaType(String fileName) {
+        if (fileName == null || !fileName.contains(".")) {
+            throw new InvalidInputException("O arquivo não possui uma extensão válida.");
+        }
+
+        String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+        MediaType mediaType = EXTENSION_TO_MEDIA_TYPE_MAP.get(extension);
+
+        if (mediaType == null) {
+            throw new InvalidInputException("Tipo de mídia não suportado para a extensão: " + extension);
+        }
+
+        return mediaType;
+    }
 
     private static final Map<String, MediaType> EXTENSION_TO_MEDIA_TYPE_MAP = Map.of(
             "jpg", MediaType.IMAGE,

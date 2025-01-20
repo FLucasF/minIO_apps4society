@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Map;
+
 @RestController
 @Slf4j
 @RequestMapping("/api/media")
@@ -34,12 +36,12 @@ public class MediaController {
 
     //http://localhost:8080/api/media/VIDEO/1?entityType=THEME
     @GetMapping("/{mediaType}/{id}")
-    public ResponseEntity<MediaDTO> getMediaById(
+    public ResponseEntity<Map<String, String>> getMediaById(
             @PathVariable MediaType mediaType,
             @PathVariable Long id,
             @RequestParam EntityType entityType) {
-        MediaDTO media = mediaService.getMediaById(id, entityType);
-        return ResponseEntity.ok(media);
+        String url = mediaService.getMediaById(id, entityType).getUrl();
+        return ResponseEntity.ok(Map.of("url", url));
     }
 
     //https://localhost:8080/api/media/{id}/update?uploadedBy={uploadedBy}
