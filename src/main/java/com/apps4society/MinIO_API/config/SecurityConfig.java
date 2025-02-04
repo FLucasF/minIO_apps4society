@@ -21,6 +21,14 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // 🔓 Permitir acesso irrestrito ao Swagger apenas em ambiente de DEV
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/webjars/**",
+                                "/error"
+                        ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(apiKeyFilter, UsernamePasswordAuthenticationFilter.class); // Adiciona o filtro de API Key

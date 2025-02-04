@@ -10,16 +10,13 @@ import com.apps4society.MinIO_API.repository.MediaRepository;
 import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
-import io.minio.errors.MinioException;
 import io.minio.http.Method;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.dao.DataIntegrityViolationException;
 
-import java.io.IOException;
-import java.time.LocalDateTime;
+
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -41,7 +38,7 @@ public class MediaServiceImpl implements MediaService {
     }
 
     @Override
-    public MediaDTO saveMedia(MultipartFile file, Long mediaIdentifier, EntityType entityType, Long uploadedBy) {
+    public MediaDTO saveMedia(String serviceName, MultipartFile file, String tag, EntityType entityType, Long uploadedBy) {
         if (file == null || file.isEmpty()) {
             throw new InvalidInputException("O arquivo enviado está vazio ou inválido.");
         }
@@ -56,10 +53,6 @@ public class MediaServiceImpl implements MediaService {
 
             MediaType mediaType = determineMediaType(objectName);
 
-            if (mediaType == null) {
-                throw new InvalidInputException("Tipo de mídia não suportado: " + file.getContentType());
-            }
-
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
@@ -70,21 +63,11 @@ public class MediaServiceImpl implements MediaService {
             );
             log.info("Arquivo enviado para o MinIO com sucesso.");
 
-            String url = minioClient.getPresignedObjectUrl(
-                    GetPresignedObjectUrlArgs.builder()
-                            .method(Method.GET)
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .expiry(2, TimeUnit.HOURS)
-                            .build()
-            );
-            log.info("URL gerada: {}", url);
-
             Media media = Media.builder()
-                    .url(url)
+                    .serviceName(serviceName)
+                    .tag(tag)
+                    .fileName(objectName)
                     .mediaType(mediaType)
-                    .uploadDate(LocalDateTime.now())
-                    .mediaIdentifier(mediaIdentifier)
                     .entityType(entityType)
                     .uploadedBy(uploadedBy)
                     .build();
@@ -94,45 +77,47 @@ public class MediaServiceImpl implements MediaService {
 
             return mediaMapper.entityToDto(savedMedia);
 
-        } catch (IOException e) {
-            log.error("Erro ao ler o arquivo: {}", e.getMessage(), e);
-            throw new ExternalServiceException("Erro ao processar o arquivo enviado.", e);
-        } catch (MinioException e) {
-            log.error("Erro ao interagir com o MinIO: {}", e.getMessage(), e);
-            throw new ExternalServiceException("Erro ao enviar o arquivo para o MinIO.", e);
-        } catch (DataIntegrityViolationException e) {
-            log.error("Erro de integridade no banco de dados: {}", e.getMessage(), e);
-            throw new DatabaseException("Erro ao salvar no banco de dados. Verifique os dados enviados.", e);
         } catch (Exception e) {
-            log.error("Erro inesperado ao salvar mídia: {}", e.getMessage(), e);
-            throw new GenericServiceException("Erro inesperado ao salvar mídia.", e);
+            log.error("Erro ao salvar mídia: {}", e.getMessage(), e);
+            throw new ExternalServiceException("Erro ao salvar mídia.", e);
         }
     }
 
     @Override
-    public MediaDTO getMediaById(Long id, EntityType entityType) {
-        Media media = mediaRepository.findByIdAndEntityType(id, entityType)
-                .orElseThrow(() -> new ResourceNotFoundException("Mídia não encontrada para o ID e tipo especificados."));
-        return  MediaDTO.builder()
-                .url(media.getUrl())
-                .build();
-    }
-
-    @Override
-    public MediaDTO updateMedia(Long id, MultipartFile file, Long uploadedBy) {
-        if (file == null || file.isEmpty()) {
-            throw new InvalidInputException("O arquivo enviado está vazio ou inválido.");
-        }
-
-        Media existingMedia = mediaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Mídia não encontrada com ID: " + id));
+    public Map<String, String> getMediaUrl(String serviceName, Long mediaId) {
+        Media media = mediaRepository.findByIdAndServiceName(mediaId, serviceName)
+                .orElseThrow(() -> new ResourceNotFoundException("Mídia não encontrada para o serviço informado."));
 
         try {
-            String objectName = file.getOriginalFilename();
-            log.info("Atualizando arquivo com o nome: {}", objectName);
+            // Gera a URL assinada para o arquivo no MinIO
+            String signedUrl = minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(bucketName)
+                            .object(media.getFileName())
+                            .expiry(1, TimeUnit.HOURS) // URL válida por 1 hora
+                            .build()
+            );
 
-            MediaType newMediaType = determineMediaType(objectName);
+            return Map.of("url", signedUrl);
 
+        } catch (Exception e) {
+            log.error("Erro ao gerar a URL assinada: {}", e.getMessage(), e);
+            throw new ExternalServiceException("Erro ao gerar a URL assinada da mídia.", e);
+        }
+    }
+
+    @Override
+    public MediaDTO updateMedia(String serviceName, Long mediaId, EntityType entityType, String tag, MediaType mediaType, MultipartFile file) {
+        // Busca a mídia pelo ID e valida se pertence ao serviço
+        Media media = mediaRepository.findByIdAndServiceName(mediaId, serviceName)
+                .orElseThrow(() -> new ResourceNotFoundException("Mídia não encontrada para o serviço especificado."));
+
+        try {
+            String objectName = serviceName + "/" + file.getOriginalFilename();
+            log.info("Atualizando mídia no serviço: {}, Nome do arquivo: {}", serviceName, objectName);
+
+            // Envia o novo arquivo para o MinIO
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
@@ -141,36 +126,32 @@ public class MediaServiceImpl implements MediaService {
                             .contentType(file.getContentType())
                             .build()
             );
+
             log.info("Arquivo atualizado no MinIO com sucesso.");
 
-            String url = minioClient.getPresignedObjectUrl(
-                    GetPresignedObjectUrlArgs.builder()
-                            .method(Method.GET)
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .expiry(2, TimeUnit.HOURS)
-                            .build()
-            );
+            // Atualiza as informações no banco de dados
+            media.setFileName(objectName);
+            media.setEntityType(entityType);
+            media.setTag(tag);
+            media.setMediaType(mediaType);
 
-            existingMedia.setUrl(url);
-            existingMedia.setUploadDate(LocalDateTime.now());
-            existingMedia.setMediaType(newMediaType);
-            existingMedia.setUploadedBy(uploadedBy);
+            Media updatedMedia = mediaRepository.save(media);
+            log.info("Mídia atualizada no banco com ID: {}", updatedMedia.getId());
 
-            Media updatedMedia = mediaRepository.save(existingMedia);
-            log.info("Mídia atualizada no banco com sucesso.");
+            // Retorna o DTO atualizado
+            return MediaDTO.builder()
+                    .id(updatedMedia.getId())
+                    .serviceName(updatedMedia.getServiceName())
+                    .mediaType(updatedMedia.getMediaType())
+                    .entityType(updatedMedia.getEntityType())
+                    .uploadedBy(updatedMedia.getUploadedBy())
+                    .fileName(updatedMedia.getFileName())
+                    .tag(updatedMedia.getTag())
+                    .build();
 
-            return mediaMapper.entityToDto(updatedMedia);
-
-        } catch (IOException e) {
-            log.error("Erro ao processar o arquivo: {}", e.getMessage(), e);
-            throw new ExternalServiceException("Erro ao processar o arquivo enviado.", e);
-        } catch (MinioException e) {
-            log.error("Erro ao interagir com o MinIO: {}", e.getMessage(), e);
-            throw new ExternalServiceException("Erro ao atualizar o arquivo no MinIO.", e);
         } catch (Exception e) {
-            log.error("Erro inesperado ao atualizar a mídia: {}", e.getMessage(), e);
-            throw new GenericServiceException("Erro inesperado ao atualizar a mídia.", e);
+            log.error("Erro ao atualizar mídia: {}", e.getMessage(), e);
+            throw new ExternalServiceException("Erro ao atualizar a mídia.", e);
         }
     }
 
@@ -193,6 +174,7 @@ public class MediaServiceImpl implements MediaService {
             "jpg", MediaType.IMAGE,
             "jpeg", MediaType.IMAGE,
             "png", MediaType.IMAGE,
+            "pdf", MediaType.IMAGE,
             "mp4", MediaType.VIDEO,
             "mp3", MediaType.AUDIO
     );

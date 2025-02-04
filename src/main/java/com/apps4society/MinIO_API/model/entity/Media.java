@@ -10,8 +10,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Entity
 @Table(name = "media")
 @Data
@@ -25,30 +23,31 @@ public class Media {
     @Column(name = "id")
     private Long id;
 
-    @NotNull(message = "O ID do arquivo é obrigatório.")
-    @Column(name = "mediaIdentifier", nullable = false, unique = true)
-    private Long mediaIdentifier;
+    @NotNull(message = "O nome do serviço é obrigatório.")
+    @Column(name = "service_name", nullable = false)
+    private String serviceName;
 
     @NotNull(message = "O tipo da entidade é obrigatório.")
     @Enumerated(EnumType.STRING)
     @Column(name = "entity_type", nullable = false)
     private EntityType entityType;
 
-    @NotNull(message = "O ID do usuário que enviou é obrigatório.")
-    @Column(name = "uploaded_by", nullable = false)
-    private Long uploadedBy;
-
-    @NotNull(message = "A URL da mídia é obrigatória.")
-    @Size(max = 2083, message = "A URL não pode exceder 2083 caracteres.")
-    @Column(name = "url", nullable = false, length = 2083)
-    private String url;
-
-    @NotNull(message = "A data de upload é obrigatória.")
-    @Column(name = "upload_date", nullable = false)
-    private LocalDateTime uploadDate;
-
     @NotNull(message = "O tipo de mídia é obrigatório.")
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type", nullable = false)
     private MediaType mediaType;
+
+    @NotNull(message = "O ID do usuário que enviou é obrigatório.")
+    @Column(name = "uploaded_by", nullable = false)
+    private Long uploadedBy;
+
+    @NotNull(message = "O nome do arquivo é obrigatório.")
+    @Size(max = 255, message = "O nome do arquivo não pode exceder 255 caracteres.")
+    @Column(name = "file_name", nullable = false,  unique = true)
+    private String fileName;
+
+    @NotNull(message = "A tag é obrigatória.")
+    @Size(max = 255, message = "O nome do arquivo não pode exceder 255 caracteres.")
+    @Column(name = "tag", nullable = false)
+    private String tag;
 }

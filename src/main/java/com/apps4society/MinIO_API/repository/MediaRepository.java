@@ -9,7 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface MediaRepository extends JpaRepository<Media, Long> {
-    Optional<Media> findByIdAndEntityType(Long id, EntityType entityType);
+    Optional<Media> findByIdAndServiceName(Long id, String serviceName);
 }
 
 

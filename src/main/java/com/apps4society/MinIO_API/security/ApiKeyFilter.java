@@ -12,7 +12,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.GenericFilterBean;
-
 import java.io.IOException;
 import java.util.Collections;
 
@@ -27,7 +26,19 @@ public class ApiKeyFilter extends GenericFilterBean {
             throws IOException, ServletException {
 
         HttpServletRequest httpRequest = (HttpServletRequest) request;
-        String requestApiKey = httpRequest.getHeader("x-api-key");
+        String requestUri = httpRequest.getRequestURI();
+
+        // 🔹 Permitir acesso irrestrito ao Swagger e outras rotas públicas
+        if (requestUri.startsWith("/swagger-ui") ||
+                requestUri.startsWith("/v3/api-docs") ||
+                requestUri.startsWith("/webjars") ||
+                requestUri.startsWith("/error")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        // 🔐 Validação da API Key para todas as outras requisições
+        String requestApiKey = httpRequest.getHeader("api-key");
 
         if (requestApiKey == null || !requestApiKey.equals(apiKey)) {
             ((HttpServletResponse) response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "API Key inválida ou ausente.");

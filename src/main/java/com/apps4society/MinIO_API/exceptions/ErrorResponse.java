@@ -16,5 +16,4 @@ public class ErrorResponse {
         this.error = status.getReasonPhrase();
         this.message = message;
     }
-
 }
