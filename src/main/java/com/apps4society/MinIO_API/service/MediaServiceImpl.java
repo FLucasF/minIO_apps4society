@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
-public class MediaServiceImpl implements MediaService {
+public class MediaService implements MediaService {
 
     private final MediaRepository mediaRepository;
     private final MediaMapper mediaMapper;

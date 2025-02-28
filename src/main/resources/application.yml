@@ -18,7 +18,7 @@ spring.jpa.properties.hibernate.dialect=${SPRING_JPA_PROPERTIES_HIBERNATE_DIALEC
 spring.jpa.show-sql=true
 spring.jpa.hibernate.ddl-auto=update
 
-# Configurações de limite de upload de arquivos
+# Configuracoes de limite de upload de arquivos
 spring.servlet.multipart.max-file-size=50MB
 spring.servlet.multipart.max-request-size=50MB
 
