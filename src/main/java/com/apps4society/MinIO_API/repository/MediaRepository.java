@@ -9,7 +9,9 @@ import java.util.Optional;
 
 @Repository
 public interface MediaRepository extends JpaRepository<Media, Long> {
-    Optional<Media> findByIdAndServiceName(Long id, String serviceName);
+    Optional<Media> findByIdAndServiceNameAndActiveTrue(Long id, String serviceName);
+    boolean existsByFileNameAndActive(String fileName, boolean active);
+
 }
 
 

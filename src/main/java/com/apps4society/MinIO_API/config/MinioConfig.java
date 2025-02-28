@@ -1,28 +1,27 @@
 package com.apps4society.MinIO_API.config;
 
 import io.minio.MinioClient;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class MinioConfig {
 
-    @Value("${minio.url}")
-    private String minioUrl;
+    private final MinioProperties minioProperties;
 
-    @Value("${minio.access.key}")
-    private String minioAccessKey;
-
-    @Value("${minio.secret.key}")
-    private String minioSecretKey;
+    public MinioConfig(MinioProperties minioProperties) {
+        this.minioProperties = minioProperties;
+    }
 
     @Bean
     public MinioClient minioClient() {
         return MinioClient.builder()
-                .endpoint(minioUrl)
-                .credentials(minioAccessKey, minioSecretKey)
+                .endpoint(minioProperties.getUrl())
+                .credentials(minioProperties.getAccessKey(), minioProperties.getSecretKey())
                 .build();
     }
-}
 
+    public String getBucketName() {
+        return minioProperties.getBucketName(); // Método simples para acessar o bucket
+    }
+}

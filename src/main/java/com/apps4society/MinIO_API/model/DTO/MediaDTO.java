@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 public class MediaDTO {
 
     @Schema(description = "Identificador único da mídia.", example = "1")
-    private Long id;
+    private Long id; //verificar se precisar usar o wrapper
 
     @Schema(description = "Nome do serviço ao qual a mídia pertence.", example = "educAPI")
     private String serviceName;
@@ -35,4 +35,6 @@ public class MediaDTO {
 
     @Schema(description = "Tag opcional para classificar a mídia.", example = "perfil")
     private String tag;
+
+    private Boolean active; //utilizar o tipo primitivo boolean, verificar se quebra
 }

@@ -8,6 +8,5 @@ import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface MediaMapper {
-    @Mapping(target = "serviceName", source = "serviceName") // Garante o mapeamento explícito
     MediaDTO entityToDto(Media Media);
 }

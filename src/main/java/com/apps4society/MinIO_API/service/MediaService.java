@@ -10,4 +10,5 @@ public interface MediaService {
     MediaDTO saveMedia(String serviceName, MultipartFile file, String tag, EntityType entityType, Long uploadedBy);
     Map<String, String> getMediaUrl(String serviceName, Long mediaId);
     MediaDTO updateMedia(String serviceName, Long mediaId, EntityType entityType, String tag, MediaType mediaType, MultipartFile file);
+    MediaDTO disableMedia(String serviceName, Long mediaId);
 }

@@ -11,7 +11,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "media")
+@Table(name = "media", uniqueConstraints = {
+        @UniqueConstraint(name = "unique_active_file", columnNames = {"file_name", "active"})
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -43,11 +45,15 @@ public class Media {
 
     @NotNull(message = "O nome do arquivo é obrigatório.")
     @Size(max = 255, message = "O nome do arquivo não pode exceder 255 caracteres.")
-    @Column(name = "file_name", nullable = false,  unique = true)
+    @Column(name = "file_name", nullable = false)
     private String fileName;
 
     @NotNull(message = "A tag é obrigatória.")
     @Size(max = 255, message = "O nome do arquivo não pode exceder 255 caracteres.")
     @Column(name = "tag", nullable = false)
     private String tag;
+
+    @Column(name = "active", nullable = false)
+    private boolean active = true;
+
 }

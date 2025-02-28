@@ -1,12 +1,12 @@
 # MinIO para produção (remoto)
 minio:
-  url: ${MINIO_URL:http://your-minio-server-url}
+  url: ${MINIO_URL:http://localhost:9000}
   access:
-    key: ${MINIO_ACCESS_KEY:prod_access_key}
+    key: ${MINIO_ACCESS_KEY:minioadmin}
   secret:
-    key: ${MINIO_SECRET_KEY:prod_secret_key}
+    key: ${MINIO_SECRET_KEY:minioadmin}
   bucket:
-    name: ${MINIO_BUCKET_NAME:prod-bucket}
+    name: ${MINIO_BUCKET_NAME:dev-bucket}
 
 # Banco de dados MySQL para produção
 spring:

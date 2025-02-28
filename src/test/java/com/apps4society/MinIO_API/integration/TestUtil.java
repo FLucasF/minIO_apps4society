@@ -2,6 +2,7 @@ package com.apps4society.MinIO_API.integration;
 
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
 
 import java.io.ByteArrayInputStream;
 import java.sql.Connection;
@@ -9,7 +10,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-public class TestSetupUtil {
+public class TestUtil {
 
     private static final String MINIO_URL = "http://127.0.0.1:9000";
     private static final String MINIO_ACCESS_KEY = "minioadmin";
@@ -20,16 +21,16 @@ public class TestSetupUtil {
     private static final String JDBC_USER = "sa";
     private static final String JDBC_PASSWORD = "";
 
+    private static final MinioClient minioClient = MinioClient.builder()
+            .endpoint(MINIO_URL)
+            .credentials(MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
+            .build();
+
     /**
-     * Adiciona um arquivo ao MinIO (simulando um upload)
+     * 📌 Adiciona um arquivo ao MinIO (simulando um upload)
      */
     public static void createTestMedia(String fileName) {
         try {
-            MinioClient minioClient = MinioClient.builder()
-                    .endpoint(MINIO_URL)
-                    .credentials(MINIO_ACCESS_KEY, MINIO_SECRET_KEY)
-                    .build();
-
             byte[] content = "teste de upload".getBytes();
             minioClient.putObject(
                     PutObjectArgs.builder()
@@ -51,7 +52,7 @@ public class TestSetupUtil {
     }
 
     /**
-     * Adiciona um registro ao banco H2
+     * 📌 Adiciona um registro ao banco H2
      */
     private static void addMediaToDatabase(String fileName) {
         try (Connection conn = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD)) {
@@ -72,5 +73,53 @@ public class TestSetupUtil {
         } catch (SQLException e) {
             System.err.println("❌ Erro ao inserir mídia no banco: " + e.getMessage());
         }
+    }
+
+    /**
+     * 📌 Remove um arquivo do MinIO
+     */
+    public static void deleteFileFromMinIO(String fileName) {
+        try {
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(BUCKET_NAME)
+                            .object(fileName)
+                            .build()
+            );
+
+            System.out.println("✅ Arquivo removido do MinIO: " + fileName);
+
+        } catch (Exception e) {
+            System.err.println("❌ Erro ao deletar arquivo do MinIO: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 📌 Remove um registro do banco H2 com base no nome do arquivo
+     */
+    public static void deleteRecordFromDatabase(String fileName) {
+        try (Connection conn = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASSWORD)) {
+            String sql = "DELETE FROM media WHERE file_name = ?";
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, fileName);
+                int affectedRows = stmt.executeUpdate();
+
+                if (affectedRows > 0) {
+                    System.out.println("✅ Registro removido do banco: " + fileName);
+                } else {
+                    System.out.println("⚠ Nenhum registro encontrado para: " + fileName);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("❌ Erro ao deletar do banco H2: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 📌 Método geral para limpeza de mídia após os testes
+     */
+    public static void cleanupTestData(String fileName) {
+        deleteFileFromMinIO(fileName);
+        deleteRecordFromDatabase(fileName);
     }
 }
