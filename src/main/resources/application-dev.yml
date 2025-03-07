@@ -1,4 +1,3 @@
-# MinIO para produção (remoto)
 minio:
   url: ${MINIO_URL:http://localhost:9000}
   access:
@@ -8,7 +7,6 @@ minio:
   bucket:
     name: ${MINIO_BUCKET_NAME:dev-bucket}
 
-# Banco de dados MySQL para produção
 spring:
   datasource:
     url: jdbc:mysql://localhost:3306/db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
@@ -22,7 +20,6 @@ spring:
     hibernate:
       ddl-auto: update
 
-# Habilitar SSL para ambiente de produção
-server:
-  ssl:
-    enabled: true
+#server:
+#  ssl:
+#    enabled: true

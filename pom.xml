@@ -167,6 +167,13 @@
 			<version>1.19.4</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>mysql</artifactId>
+			<version>1.17.6</version>
+			<scope>test</scope>
+		</dependency>
+
 	</dependencies>
 
 	<build>
@@ -235,4 +242,148 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+
+		<!-- Perfil para testes unitários -->
+		<profile>
+			<id>unit-tests</id>
+			<activation>
+				<property>
+					<name>env</name>
+					<value>unit</value>  <!-- Ativa apenas quando -Denv=unit -->
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<version>3.2.5</version>
+						<executions>
+							<execution>
+								<id>run-unit-tests</id>
+								<goals>
+									<goal>test</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<includes>
+								<include>**/*Test.java</include>  <!-- Apenas unitários -->
+							</includes>
+							<excludes>
+								<exclude>**/*IT.java</exclude>  <!-- Exclui integração -->
+							</excludes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<!-- Perfil para testes de integração -->
+		<profile>
+			<id>integration-tests</id>
+			<activation>
+				<property>
+					<name>env</name>
+					<value>integration</value>  <!-- Ativa apenas quando -Denv=integration -->
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<version>3.2.5</version>
+						<configuration>
+							<skip>true</skip>  <!-- Evita rodar unitários -->
+						</configuration>
+					</plugin>
+
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-failsafe-plugin</artifactId>
+						<version>3.2.5</version>
+						<executions>
+							<execution>
+								<id>run-integration-tests</id>
+								<phase>integration-test</phase>
+								<goals>
+									<goal>integration-test</goal>
+									<goal>verify</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<includes>
+								<include>**/*IT.java</include>  <!-- Apenas testes de integração -->
+							</includes>
+							<excludes>
+								<exclude>**/*Test.java</exclude>  <!-- Exclui unitários -->
+							</excludes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<!-- Perfil para rodar TODOS os testes -->
+		<profile>
+			<id>all-tests</id>
+			<activation>
+				<property>
+					<name>env</name>
+					<value>all</value>  <!-- Ativa apenas quando -Denv=all -->
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<version>3.2.5</version>
+						<executions>
+							<execution>
+								<id>run-unit-tests</id>
+								<goals>
+									<goal>test</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<includes>
+								<include>**/*Test.java</include>  <!-- Testes unitários -->
+							</includes>
+						</configuration>
+					</plugin>
+
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-failsafe-plugin</artifactId>
+						<version>3.2.5</version>
+						<executions>
+							<execution>
+								<id>run-integration-tests</id>
+								<phase>integration-test</phase>
+								<goals>
+									<goal>integration-test</goal>
+									<goal>verify</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<includes>
+								<include>**/*IT.java</include>  <!-- Testes de integração -->
+							</includes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+	</profiles>
+
+
+
 </project>

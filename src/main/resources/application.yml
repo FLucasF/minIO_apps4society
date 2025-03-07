@@ -1,38 +1,3 @@
-#spring.application.name=MinIO_API
-#app.api.key=${API_KEY:123}
-#
-#minio.url=${MINIO_URL:http://localhost:9000}
-#minio.access.key=${MINIO_ACCESS_KEY:minioadmin}
-#minio.secret.key=${MINIO_SECRET_KEY:minioadmin}
-#minio.bucket.name=${MINIO_BUCKET_NAME:test}
-#
-##configuracao do Banco de Dados MySQL
-#spring.datasource.url=${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
-#spring.datasource.username=${SPRING_DATASOURCE_USERNAME:root}
-#spring.datasource.password=${SPRING_DATASOURCE_PASSWORD:12345}
-#
-#spring.jpa.database-platform=${SPRING_JPA_DATABASE_PLATFORM:org.hibernate.dialect.MySQLDialect}
-#spring.jpa.properties.hibernate.dialect=${SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT:org.hibernate.dialect.MySQLDialect}
-#
-##mostrar as consultas SQL no console
-#spring.jpa.show-sql=true
-#spring.jpa.hibernate.ddl-auto=update
-#
-## Configuracoes de limite de upload de arquivos
-#spring.servlet.multipart.max-file-size=50MB
-#spring.servlet.multipart.max-request-size=50MB
-#
-## Certificado SSL/TLS
-#server.port=${SERVER_PORT:8080}
-#server.ssl.key-store=${SERVER_SSL_KEY_STORE:classpath:keystore.p12}
-#server.ssl.key-store-password=${SERVER_SSL_KEY_STORE_PASSWORD:123456}
-#server.ssl.key-store-type=${SERVER_SSL_KEY_STORE_TYPE:PKCS12}
-#server.ssl.key-alias=${SERVER_SSL_KEY_ALIAS:minio-api}
-#
-## Habilita logs detalhados do Spring Security
-#logging.level.org.springframework.security=DEBUG
-#logging.level.com.apps4society.MinIO_API.security.ApiKeyFilter=DEBUG
-
 spring:
   application:
     name: MinIO_API
@@ -41,12 +6,11 @@ spring:
       max-file-size: 50MB
       max-request-size: 50MB
   profiles:
-    # Defina o perfil ativo via variável de ambiente ou aqui mesmo (exemplo: dev ou test)
     active: dev
 
 app:
   api:
-    key: ${API_KEY:123}   # Usado para injeção (@Value("${app.api.key}"))
+    key: ${API_KEY:123}
 logging:
   level:
     io.minio: TRACE
@@ -54,8 +18,8 @@ logging:
 
 server:
   port: ${SERVER_PORT:8080}
-  ssl:
-    key-store: ${SERVER_SSL_KEY_STORE:classpath:keystore.p12}
-    key-store-password: ${SERVER_SSL_KEY_STORE_PASSWORD:123456}
-    key-store-type: ${SERVER_SSL_KEY_STORE_TYPE:PKCS12}
-    key-alias: ${SERVER_SSL_KEY_ALIAS:minio-api}
+#  ssl:
+#    key-store: ${SERVER_SSL_KEY_STORE:classpath:keystore.p12}
+#    key-store-password: ${SERVER_SSL_KEY_STORE_PASSWORD:123456}
+#    key-store-type: ${SERVER_SSL_KEY_STORE_TYPE:PKCS12}
+#    key-alias: ${SERVER_SSL_KEY_ALIAS:minio-api}

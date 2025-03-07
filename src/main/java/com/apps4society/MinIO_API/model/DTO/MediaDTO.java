@@ -36,5 +36,6 @@ public class MediaDTO {
     @Schema(description = "Tag opcional para classificar a mídia.", example = "perfil")
     private String tag;
 
+    @Schema(description = "Indica se a mídia está ativa.", example = "true")
     private Boolean active; //utilizar o tipo primitivo boolean, verificar se quebra
 }

@@ -50,7 +50,7 @@ public class MediaController {
             @RequestParam("uploadedBy") Long uploadedBy) {
 
         MediaDTO mediaDTO = mediaService.saveMedia(serviceName, file, tag, entityType, uploadedBy);
-        return ResponseEntity.status(HttpStatus.CREATED).body(mediaDTO); // ✅ Retornando 201 Created
+        return ResponseEntity.status(HttpStatus.CREATED).body(mediaDTO);
     }
 
     @Operation(
@@ -70,7 +70,7 @@ public class MediaController {
 
         return Optional.ofNullable(mediaService.getMediaUrl(serviceName, mediaId))
                 .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build()); // ✅ 404 se não encontrar
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
     @Operation(
@@ -94,7 +94,7 @@ public class MediaController {
 
         return Optional.ofNullable(mediaService.updateMedia(serviceName, mediaId, entityType, tag, mediaType, file))
                 .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build()); // ✅ 404 se a mídia não existir
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
     @Operation(
@@ -107,7 +107,7 @@ public class MediaController {
                     @ApiResponse(responseCode = "500", description = "Erro interno ao desativar a mídia.")
             }
     )
-    @DeleteMapping("/{serviceName}/{mediaId}")
+    @DeleteMapping("delete/{serviceName}/{mediaId}")
     public ResponseEntity<Void> disableMedia(@PathVariable String serviceName, @PathVariable Long mediaId) {
         boolean deleted = mediaService.disableMedia(serviceName, mediaId) != null;
 

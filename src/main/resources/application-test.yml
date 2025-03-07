@@ -1,36 +1,27 @@
-#spring.datasource.url=jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
-#spring.datasource.driver-class-name=org.h2.Driver
-#spring.datasource.username=sa
-#spring.datasource.password=
-#
-#spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
-#spring.jpa.hibernate.ddl-auto=create-drop
-#spring.jpa.show-sql=true
-#
-#server.ssl.enabled=false
-#
-
-minio:
-  url: ${MINIO_URL:http://localhost:9000}  # MinIO local para testes
-  access:
-    key: ${MINIO_ACCESS_KEY:minioadmin}
-  secret:
-    key: ${MINIO_SECRET_KEY:minioadmin}
-  bucket:
-    name: ${MINIO_BUCKET_NAME:test-bucket}
-
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: ''
+    url: jdbc:mysql://localhost:${TESTCONTAINERS_MYSQL_PORT}/testdb
+    username: test
+    password: test
+    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: create
     show-sql: true
+  sql:
+    init:
+      mode: always
 
 server:
   ssl:
     enabled: false
+
+minio:
+  url: ${MINIO_URL:http://localhost:9000}
+  access:
+    key: minioadmin
+  secret:
+    key: minioadmin
+  bucket:
+    name: test-bucket

@@ -1,23 +1,33 @@
 package com.apps4society.MinIO_API.exceptions;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.nio.file.AccessDeniedException;
 
+@Slf4j
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 400 BAD REQUEST
+    // 400 BAD REQUEST – já existente
     @ExceptionHandler({InvalidInputException.class, InvalidFileException.class, MethodArgumentTypeMismatchException.class})
     public ResponseEntity<ErrorResponse> handleBadRequest(Exception ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    // NOVO: 400 BAD REQUEST para parâmetros ou partes ausentes
+    @ExceptionHandler({MissingServletRequestParameterException.class, MissingServletRequestPartException.class})
+    public ResponseEntity<ErrorResponse> handleMissingParams(Exception ex, HttpServletRequest request) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Parâmetro ausente: " + ex.getMessage(), request);
     }
 
     // 403 FORBIDDEN
@@ -68,10 +78,11 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request);
     }
 
-    // 500 INTERNAL SERVER ERROR – pega tudo que não foi tratado
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(Exception ex, HttpServletRequest request) {
-        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Ocorreu um erro inesperado.", request);
+    public ResponseEntity<String> handleException(Exception e) {
+        log.error("Erro interno detectado: ", e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Ocorreu um erro interno no servidor: " + e.getMessage());
     }
 
     // Método genérico para construir respostas de erro

@@ -34,18 +34,15 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 @ActiveProfiles("test")
-public class MediaIntegrationTest {
+public class MediaIntegrationIT {
 
-    private static final Logger logger = LoggerFactory.getLogger(MediaIntegrationTest.class);
+    private static final Logger logger = LoggerFactory.getLogger(MediaIntegrationIT.class);
 
     @LocalServerPort
     private int port;
 
     @Autowired
     private MediaTestUtil mediaTestUtil;
-
-    @Autowired
-    private MediaService mediaService;
 
     @Container
     public static MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.0")
@@ -62,7 +59,7 @@ public class MediaIntegrationTest {
 
     @BeforeAll
     static void setup() {
-        logger.info("Iniciando configuração dos containers...");
+        logger.info("Iniciando configuração dos containers");
         mysqlContainer.start();
         minioContainer.start();
         logger.info("Containers iniciados!");
@@ -70,7 +67,6 @@ public class MediaIntegrationTest {
         String minioUrl = "http://" + minioContainer.getHost() + ":" + minioContainer.getMappedPort(9000);
         System.setProperty("minio.url", minioUrl);
 
-        // Obtendo a porta dinâmica do MySQL
         int mysqlPort = mysqlContainer.getMappedPort(3306);
         System.setProperty("TESTCONTAINERS_MYSQL_PORT", String.valueOf(mysqlPort));
 
@@ -96,9 +92,9 @@ public class MediaIntegrationTest {
             boolean bucketExists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
             if (!bucketExists) {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
-                logger.info("✅ Bucket '{}' criado com sucesso!", bucketName);
+                logger.info("Bucket '{}' criado com sucesso!", bucketName);
             } else {
-                logger.info("⚠️ Bucket '{}' já existe.", bucketName);
+                logger.info("Bucket '{}' já existe.", bucketName);
             }
         } catch (Exception e) {
             logger.error("Erro ao criar bucket no MinIO: ", e);
@@ -178,7 +174,6 @@ public class MediaIntegrationTest {
 
         logger.info("Upload de mídia realizado com sucesso.");
 
-        // Cleanup - Remover a mídia após o teste
         mediaTestUtil.cleanupTestMedia(fileName);
         assertFalse(mediaTestUtil.checkFileExists(fileName), "A mídia não foi removida corretamente.");
     }
@@ -188,10 +183,9 @@ public class MediaIntegrationTest {
     void testGetMediaUrl_AfterUploadingMedia_ShouldReturn200OK() {
         logger.info("Criando mídia de teste...");
 
-        // Criando mídia no bucket e banco de dados
         Map<String, Object> testMedia = mediaTestUtil.createTestMedia("educaAPI/test-image.png");
 
-        logger.info("🟡 Mídia criada: {}", testMedia);
+        logger.info("Mídia criada: {}", testMedia);
 
         logger.info("Solicitando URL assinada para mídia ID: {}", testMedia.get("id"));
 
@@ -209,7 +203,7 @@ public class MediaIntegrationTest {
         assertEquals(200, response.getStatusCode(), "Código de status não corresponde ao esperado.");
         assertNotNull(response.jsonPath().get("url"), "A URL retornada não deveria ser nula.");
 
-        logger.info("✅ URL assinada obtida com sucesso.");
+        logger.info("URL assinada obtida com sucesso.");
 
         // Cleanup - Remover a mídia após o teste
         mediaTestUtil.cleanupTestMedia((String) testMedia.get("fileName"));
@@ -222,10 +216,9 @@ public class MediaIntegrationTest {
     void testUpdateMedia_WithValidData_ShouldReturn200OK() throws Exception {
         logger.info("Criando mídia de teste...");
 
-        // Criando mídia inicial no bucket e banco de dados
         Map<String, Object> testMedia = mediaTestUtil.createTestMedia("educaAPI/test-image.png");
 
-        logger.info("🟡 Mídia criada: {}", testMedia);
+        logger.info("Mídia criada: {}", testMedia);
 
         logger.info("Verificando se o arquivo de atualização existe...");
         File updatedFile = new File("src/test/resources/test-image-updated.jpg");
@@ -273,7 +266,6 @@ public class MediaIntegrationTest {
 
         logger.info("✅ Mídia atualizada com sucesso.");
 
-        // Cleanup - Remover a mídia após o teste
         mediaTestUtil.cleanupTestMedia((String) testMedia.get("fileName"));
         assertFalse(mediaTestUtil.checkFileExists((String) testMedia.get("fileName")), "A mídia não foi removida corretamente.");
     }
@@ -283,12 +275,10 @@ public class MediaIntegrationTest {
     void testDisableMedia_ShouldDisableInDatabaseAndBucket() {
         logger.info("Criando mídia de teste...");
 
-        // Criando mídia inicial no bucket e banco de dados
         Map<String, Object> testMedia = mediaTestUtil.createTestMedia("educaAPI/test-image.png");
 
         logger.info("🟡 Mídia criada: {}", testMedia);
 
-        // Desabilitando a mídia
         logger.info("Desabilitando mídia ID: {}", testMedia.get("id"));
 
         var response = given()
@@ -302,12 +292,10 @@ public class MediaIntegrationTest {
 
         response.then().log().all().statusCode(204); // Verifica apenas o status da resposta
 
-        // Verifica no banco se a mídia está inativa
         Media mediaFromDb = mediaTestUtil.findMediaById((Long) testMedia.get("id"));
         assertNotNull(mediaFromDb, "A mídia deveria existir no banco.");
         assertFalse(mediaFromDb.isActive(), "A mídia deveria estar desativada no banco de dados.");
 
-        // Verifica se a mídia foi movida no MinIO
         boolean existsInActiveFolder = mediaTestUtil.checkFileExists("educaAPI/test-image.png");
         boolean existsInDisabledFolder = mediaTestUtil.checkFileExists("arquivos_desativados/educaAPI/test-image.png");
 

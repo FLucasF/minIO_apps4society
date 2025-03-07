@@ -11,9 +11,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "media", uniqueConstraints = {
-        @UniqueConstraint(name = "unique_active_file", columnNames = {"file_name", "active"})
-})
+@Table(name = "media")
 @Data
 @Builder
 @NoArgsConstructor
@@ -28,11 +26,6 @@ public class Media {
     @NotNull(message = "O nome do serviço é obrigatório.")
     @Column(name = "service_name", nullable = false)
     private String serviceName;
-
-    @NotNull(message = "O tipo da entidade é obrigatório.")
-    @Enumerated(EnumType.STRING)
-    @Column(name = "entity_type", nullable = false)
-    private EntityType entityType;
 
     @NotNull(message = "O tipo de mídia é obrigatório.")
     @Enumerated(EnumType.STRING)
