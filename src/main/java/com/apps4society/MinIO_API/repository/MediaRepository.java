@@ -1,7 +1,6 @@
 package com.apps4society.MinIO_API.repository;
 
 import com.apps4society.MinIO_API.model.entity.Media;
-import com.apps4society.MinIO_API.model.enums.EntityType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,11 +9,15 @@ import java.util.Optional;
 
 @Repository
 public interface MediaRepository extends JpaRepository<Media, Long> {
+
+    /**
+     * Busca uma mídia ativa pelo ID.
+     */
+    Optional<Media> findByIdAndActiveTrue(Long id);
     Optional<Media> findByIdAndServiceNameAndActiveTrue(Long id, String serviceName);
-    boolean existsByFileNameAndActive(String fileName, boolean active);
-    boolean existsByFileNameAndServiceNameAndActiveTrue(String fileName, String serviceName);
-    List<Media> findByServiceNameAndEntityTypeAndEntityIdAndActiveTrue(String serviceName, EntityType entityType, Long entityId);
 
+    /**
+     * Lista todas as mídias ativas associadas a um serviço e uma entidade específica.
+     */
+    List<Media> findByServiceNameAndEntityIdAndActiveTrue(String serviceName, Long entityId);
 }
-
-

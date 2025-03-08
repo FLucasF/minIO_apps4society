@@ -33,14 +33,9 @@ public class MediaServiceImplDetermineTypeTest extends BaseMediaServiceImplTest{
 
     @Test
     void testDetermineMediaType_noExtension_throwsInvalidFileException() {
-        assertThrows(InvalidFileException.class, () ->
+        assertThrows(UnsupportedMediaTypeException.class, () ->
                 ReflectionTestUtils.invokeMethod(mediaService, "determineMediaType", "testfile"));
     }
 
-    @Test
-    void testBuildObjectName() {
-        String result = ReflectionTestUtils.invokeMethod(mediaService, "buildObjectName", "educAPI", "test.png");
-        assertEquals("educAPI/test.png", result);
-    }
 
 }

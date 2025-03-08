@@ -3,24 +3,21 @@ package com.apps4society.MinIO_API.service;
 import com.apps4society.MinIO_API.config.MinioConfig;
 import com.apps4society.MinIO_API.exceptions.*;
 import com.apps4society.MinIO_API.mapper.MediaMapper;
-import com.apps4society.MinIO_API.model.DTO.MediaDTO;
+import com.apps4society.MinIO_API.model.DTO.MediaRequest;
+import com.apps4society.MinIO_API.model.DTO.MediaResponse;
 import com.apps4society.MinIO_API.model.entity.Media;
-import com.apps4society.MinIO_API.model.enums.EntityType;
 import com.apps4society.MinIO_API.model.enums.MediaType;
 import com.apps4society.MinIO_API.repository.MediaRepository;
 import io.minio.*;
-import io.minio.errors.MinioException;
 import io.minio.http.Method;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
+import java.util.stream.Collectors;
 @Service
 @Slf4j
 public class MediaServiceImpl implements MediaService {
@@ -30,11 +27,7 @@ public class MediaServiceImpl implements MediaService {
     private final MinioClient minioClient;
     private final String bucketName;
 
-    public MediaServiceImpl(
-            MediaRepository mediaRepository,
-            MediaMapper mediaMapper,
-            MinioClient minioClient,
-            MinioConfig minioConfig) {
+    public MediaServiceImpl(MediaRepository mediaRepository, MediaMapper mediaMapper, MinioClient minioClient, MinioConfig minioConfig) {
         this.mediaRepository = mediaRepository;
         this.mediaMapper = mediaMapper;
         this.minioClient = minioClient;
@@ -42,287 +35,212 @@ public class MediaServiceImpl implements MediaService {
     }
 
     @Override
-    public MediaDTO saveMedia(String serviceName, MultipartFile file, String tag, EntityType entityType, Long uploadedBy) {
-        log.info("Recebendo requisição para salvar mídia no serviço '{}'", serviceName);
-        log.info("🔍 Bucket utilizado: '{}'", bucketName);
+    public MediaResponse uploadMedia(MediaRequest request) {
+        log.info("📁 [UPLOAD] Iniciando upload de mídia | Entidade: '{}' | Serviço: '{}'", request.entityId(), request.serviceName());
 
-        if (file == null || file.isEmpty() || file.getOriginalFilename() == null || file.getOriginalFilename().trim().isEmpty()) {
-            log.warn("O arquivo enviado está vazio, inválido ou sem nome.");
-            throw new InvalidFileException("O arquivo enviado está vazio, inválido ou sem nome.");
+        if (request.file().isEmpty() || request.file().getOriginalFilename() == null) {
+            log.warn("❌ [UPLOAD] Arquivo inválido - Está vazio ou sem nome.");
+            throw new InvalidFileException("O arquivo enviado está vazio ou sem nome.");
         }
 
-        if (bucketName == null || bucketName.isEmpty()) {
-            log.error("Falha ao salvar mídia: Nome do bucket não está configurado.");
-            throw new BucketNotFoundException("O nome do bucket não foi configurado corretamente.");
-        }
+        String originalFileName = request.file().getOriginalFilename();
+        String objectName = request.serviceName() + "/" + originalFileName;
+        MediaType mediaType = determineMediaType(originalFileName);
 
-        if (serviceName == null || serviceName.trim().isEmpty() ||
-                tag == null || tag.trim().isEmpty() ||
-                entityType == null ||
-                uploadedBy == null) {
-            log.warn("Parâmetros inválidos ao salvar mídia.");
-            throw new IllegalArgumentException("Um ou mais parâmetros obrigatórios estão inválidos.");
-        }
-
-        String objectName = buildObjectName(serviceName, file.getOriginalFilename());
-
-        boolean existsActiveMedia = mediaRepository.existsByFileNameAndServiceNameAndActiveTrue(objectName, serviceName);
-        if (existsActiveMedia) {
-            log.warn("❌ Já existe um arquivo ativo com esse nome no serviço '{}'", serviceName);
-            throw new DuplicateFileException("Já existe um arquivo ativo com esse nome.");
-        }
+        log.info("🔹 [UPLOAD] Nome do arquivo original: '{}'", originalFileName);
+        log.info("🔹 [UPLOAD] Nome do objeto no MinIO: '{}'", objectName);
+        log.info("🔹 [UPLOAD] Tipo de mídia detectado: '{}'", mediaType);
 
         try {
-            MediaType mediaType = determineMediaType(objectName);
-            log.info("Tipo de mídia identificado: {}", mediaType);
-
+            log.info("🛠️ [UPLOAD] Enviando arquivo para MinIO - Bucket: '{}'", bucketName);
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
                             .object(objectName)
-                            .stream(file.getInputStream(), file.getSize(), -1)
-                            .contentType(file.getContentType())
+                            .stream(request.file().getInputStream(), request.file().getSize(), -1)
+                            .contentType(request.file().getContentType())
                             .build()
             );
-            log.info("✅ Arquivo enviado para o MinIO com sucesso.");
+            log.info("✅ [UPLOAD] Arquivo '{}' salvo com sucesso no MinIO!", objectName);
 
-            Media media = Media.builder()
-                    .serviceName(serviceName)
-                    .tag(tag)
-                    .fileName(objectName)
-                    .mediaType(mediaType)
-                    .entityType(entityType)
-                    .uploadedBy(uploadedBy)
-                    .active(true)
-                    .build();
-
+            Media media = new Media(null, request.serviceName(), mediaType, originalFileName, request.entityId(), true);
             Media savedMedia = mediaRepository.save(media);
-            log.info("✅ Mídia salva no banco com ID: {}, Nome: {}", savedMedia.getId(), savedMedia.getFileName());
+            log.info("✅ [UPLOAD] Mídia salva no banco | ID: '{}' | Nome: '{}'", savedMedia.getId(), savedMedia.getFileName());
 
-            return mediaMapper.entityToDto(savedMedia);
+            return mediaMapper.toResponse(savedMedia);
         } catch (Exception e) {
-            log.error("Erro inesperado ao armazenar arquivo no MinIO: {}", e.getMessage(), e);
+            log.error("❌ [UPLOAD] Erro ao armazenar mídia no MinIO!", e);
             throw new FileStorageException("Erro ao salvar mídia no armazenamento.", e);
         }
     }
 
     @Override
-    public Map<String, String> getMediaUrl(String serviceName, Long mediaId) {
-        log.info("Gerando URL assinada para mídia ID: {} no serviço '{}'", mediaId, serviceName);
-
-        if (serviceName == null || serviceName.trim().isEmpty()) {
-            log.warn("Nome do serviço não pode ser nulo ou vazio.");
-            throw new IllegalArgumentException("Nome do serviço é obrigatório.");
-        }
-
-        if (mediaId == null) {
-            log.warn("ID da mídia não pode ser nulo.");
-            throw new IllegalArgumentException("ID da mídia é obrigatório.");
-        }
+    public String getMediaUrl(String serviceName, Long mediaId) {
+        log.info("🔍 [GET MEDIA URL] Buscando URL da mídia ID '{}' no serviço '{}'", mediaId, serviceName);
 
         Media media = mediaRepository.findByIdAndServiceNameAndActiveTrue(mediaId, serviceName)
-                .orElseThrow(() -> {
-                    log.warn("Mídia não encontrada para o ID {} no serviço '{}'", mediaId, serviceName);
-                    return new MediaNotFoundException("Mídia não encontrada para o serviço informado.");
-                });
+                .orElseThrow(() -> new MediaNotFoundException("Mídia não encontrada ou inativa."));
 
         try {
-            String signedUrl = minioClient.getPresignedObjectUrl(
+            // Gera a URL assinada do MinIO
+            String objectPath = media.getServiceName() + "/" + media.getFileName();
+            return minioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(bucketName)
-                            .object(media.getFileName())
-                            .expiry(1, TimeUnit.HOURS)
+                            .object(objectPath)
+                            .expiry(1, TimeUnit.HOURS) // URL válida por 1 hora
                             .build()
             );
-            log.info("URL assinada gerada com sucesso para mídia '{}'", media.getFileName());
-            return Map.of("url", signedUrl);
-        } catch (MinioException e) {
-            log.error("Erro ao conectar com o MinIO: {}", e.getMessage(), e);
-            throw new MinIOConnectionException("Erro ao conectar com o MinIO ao gerar URL assinada.", e);
         } catch (Exception e) {
-            log.error("Erro inesperado ao gerar URL assinada: {}", e.getMessage(), e);
             throw new MinIOConnectionException("Erro ao gerar URL assinada da mídia.", e);
         }
     }
 
+
+
     @Override
-    public List<Map<String, String>> listarMidiasComUrl(String serviceName, EntityType entityType, Long entityId) {
-        log.info("Buscando todas as mídias com URL do serviço '{}' para a entidade '{}'", serviceName, entityType);
+    public List<MediaResponse> listMediaByEntity(String serviceName, Long entityId) {
+        log.info("📌 [LIST] Buscando mídias para Entidade '{}' | Serviço '{}'", entityId, serviceName);
 
-        if (serviceName == null || serviceName.trim().isEmpty()) {
-            log.warn("Nome do serviço não pode ser nulo ou vazio.");
-            throw new IllegalArgumentException("Nome do serviço é obrigatório.");
-        }
-
-        if (entityType == null || entityId == null) {
-            log.warn("Tipo de entidade ou ID não podem ser nulos.");
-            throw new IllegalArgumentException("Tipo de entidade e ID são obrigatórios.");
-        }
-
-        // Busca as mídias no banco de dados
-        List<Media> midias = mediaRepository.findByServiceNameAndEntityTypeAndEntityIdAndActiveTrue(
-                serviceName, entityType, entityId);
+        List<Media> midias = mediaRepository.findByServiceNameAndEntityIdAndActiveTrue(serviceName, entityId);
 
         if (midias.isEmpty()) {
-            log.warn("Nenhuma mídia encontrada para a entidade '{}' no serviço '{}'", entityType, serviceName);
-            return Collections.emptyList();
+            log.warn("⚠️ [LIST] Nenhuma mídia encontrada para a entidade '{}' e serviço '{}'", entityId, serviceName);
+        } else {
+            log.info("✅ [LIST] {} mídias encontradas para a entidade '{}'", midias.size(), entityId);
         }
 
-        // Para cada mídia encontrada, chamamos getMediaUrl para obter a URL assinada
-        return midias.stream()
-                .map(media -> {
-                    Map<String, String> urlMap = getMediaUrl(serviceName, media.getId());
-                    return Map.of(
-                            "id", String.valueOf(media.getId()),
-                            "fileName", media.getFileName(),
-                            "url", urlMap.get("url")
-                    );
-                })
-                .toList();
+        return midias.stream().map(mediaMapper::toResponse).collect(Collectors.toList());
     }
 
 
     @Override
-    public MediaDTO updateMedia(String serviceName, Long mediaId, EntityType entityType, String tag, MediaType mediaType, MultipartFile file) {
-        log.info("Recebendo requisição para atualizar mídia ID: {} no serviço '{}'", mediaId, serviceName);
+    public MediaResponse updateMedia(String serviceName, Long mediaId, MediaRequest request) {
+        log.info("✏ [UPDATE MEDIA] Atualizando mídia ID '{}' no serviço '{}'", mediaId, serviceName);
 
-        if (file == null || file.isEmpty() || file.getOriginalFilename() == null || file.getOriginalFilename().trim().isEmpty()) {
-            log.warn("O arquivo enviado para atualização está vazio, inválido ou sem nome.");
-            throw new InvalidFileException("O arquivo enviado para atualização está vazio, inválido ou sem nome.");
-        }
-
-        if (bucketName == null || bucketName.isEmpty()) {
-            log.error("Falha ao atualizar mídia: Nome do bucket não está configurado.");
-            throw new BucketNotFoundException("O nome do bucket não foi configurado corretamente.");
-        }
-
-        if (serviceName == null || serviceName.trim().isEmpty() ||
-                tag == null || tag.trim().isEmpty() ||
-                entityType == null ||
-                mediaId == null) {
-            log.warn("Parâmetros inválidos ao atualizar mídia.");
-            throw new IllegalArgumentException("Um ou mais parâmetros obrigatórios estão inválidos.");
-        }
-
+        // Buscar mídia existente garantindo que pertence ao serviço correto
         Media media = mediaRepository.findByIdAndServiceNameAndActiveTrue(mediaId, serviceName)
                 .orElseThrow(() -> {
-                    log.warn("Mídia não encontrada para o ID {} no serviço '{}'", mediaId, serviceName);
-                    return new MediaNotFoundException("Mídia não encontrada para o serviço informado.");
+                    log.warn("❌ [UPDATE MEDIA] Mídia ID '{}' não encontrada no serviço '{}' ou inativa.", mediaId, serviceName);
+                    return new MediaNotFoundException("Mídia não encontrada ou inativa.");
                 });
 
+        // Validação do novo arquivo
+        if (request.file().isEmpty() || request.file().getOriginalFilename() == null) {
+            throw new InvalidFileException("O arquivo enviado para atualização está vazio ou sem nome.");
+        }
+
         try {
-            String objectName = buildObjectName(serviceName, file.getOriginalFilename());
-            log.info("Atualizando mídia '{}', novo arquivo: '{}'", media.getFileName(), objectName);
+            // Construção do nome do novo objeto no MinIO
+            String newFileName = request.file().getOriginalFilename();
+            String newObjectName = serviceName + "/" + newFileName;
+            MediaType newMediaType = determineMediaType(newObjectName);
 
-            MediaType newMediaType = determineMediaType(objectName);
-            log.info("Novo tipo de mídia identificado: {}", newMediaType);
-
+            // Substituir no MinIO
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(bucketName)
-                            .object(objectName)
-                            .stream(file.getInputStream(), file.getSize(), -1)
-                            .contentType(file.getContentType())
+                            .object(newObjectName)
+                            .stream(request.file().getInputStream(), request.file().getSize(), -1)
+                            .contentType(request.file().getContentType())
                             .build()
             );
-            log.info("Arquivo atualizado no MinIO com sucesso.");
 
-            media.setFileName(objectName);
-            media.setEntityType(entityType);
-            media.setTag(tag);
+            // Atualizar no banco de dados
+            media.setFileName(newFileName);
             media.setMediaType(newMediaType);
-
             Media updatedMedia = mediaRepository.save(media);
-            log.info("Mídia atualizada no banco com ID: {}", updatedMedia.getId());
 
-            return mediaMapper.entityToDto(updatedMedia);
+            // Retornar resposta usando o DTO e o Mapper
+            return mediaMapper.toResponse(updatedMedia);
         } catch (Exception e) {
-            log.error("Erro ao armazenar arquivo no MinIO: {}", e.getMessage(), e);
             throw new FileStorageException("Erro ao atualizar a mídia no armazenamento.", e);
         }
     }
 
+
     @Override
     @Transactional
-    public MediaDTO disableMedia(String serviceName, Long mediaId) {
-        log.info("Recebendo requisição para desativar mídia ID: {} no serviço '{}'", mediaId, serviceName);
-
-        if (serviceName == null || serviceName.trim().isEmpty()) {
-            log.warn("O nome do serviço está nulo ou vazio.");
-            throw new IllegalArgumentException("O nome do serviço não pode ser nulo ou vazio.");
-        }
+    public void disableMedia(String serviceName, Long mediaId) {
+        log.info("🔻 [DISABLE] Desativando mídia ID '{}' no serviço '{}'", mediaId, serviceName);
 
         Media media = mediaRepository.findByIdAndServiceNameAndActiveTrue(mediaId, serviceName)
                 .orElseThrow(() -> {
-                    log.warn("Mídia não encontrada para o ID {} no serviço '{}'", mediaId, serviceName);
-                    return new MediaNotFoundException("Mídia não encontrada para o serviço informado.");
+                    log.warn("❌ [DISABLE] Mídia ID '{}' não encontrada no serviço '{}'!", mediaId, serviceName);
+                    return new MediaNotFoundException("Mídia não encontrada ou inativa.");
                 });
 
         try {
-            String newObjectName = "arquivos_desativados/" + media.getFileName();
+            String newObjectName = "arquivos_desativados/" + serviceName + "/" + media.getFileName();
+            log.info("🛠️ [DISABLE] Movendo arquivo para '{}'", newObjectName);
 
             minioClient.copyObject(
                     CopyObjectArgs.builder()
                             .bucket(bucketName)
                             .object(newObjectName)
-                            .source(CopySource.builder()
-                                    .bucket(bucketName)
-                                    .object(media.getFileName())
-                                    .build())
+                            .source(CopySource.builder().bucket(bucketName).object(serviceName + "/" + media.getFileName()).build())
                             .build()
             );
 
             minioClient.removeObject(
                     RemoveObjectArgs.builder()
                             .bucket(bucketName)
-                            .object(media.getFileName())
+                            .object(serviceName + "/" + media.getFileName())
                             .build()
             );
 
-            log.info("📁 Arquivo '{}' movido para '{}'", media.getFileName(), newObjectName);
-
+            log.info("📁 [DISABLE] Arquivo '{}' movido para '{}'", media.getFileName(), newObjectName);
         } catch (Exception e) {
-            log.error("Erro ao mover a mídia no MinIO: {}", e.getMessage(), e);
+            log.error("❌ [DISABLE] Erro ao mover mídia!", e);
             throw new FileStorageException("Erro ao mover mídia no armazenamento.", e);
         }
 
-        media.setActive(false);
-        Media updatedMedia = mediaRepository.save(media);
-        log.info("✅ Mídia ID {} foi desativada no banco.", mediaId);
-
-        return mediaMapper.entityToDto(updatedMedia);
+        media.disable();
+        mediaRepository.save(media);
+        log.info("✅ [DISABLE] Mídia ID '{}' desativada no banco para o serviço '{}'!", mediaId, serviceName);
     }
 
     /**
-     * Constrói o nome do objeto para o armazenamento no MinIO, garantindo que ele inclua o prefixo do serviço.
+     * Determina o tipo de mídia com base na extensão do arquivo.
      */
-    private String buildObjectName(String serviceName, String fileName) {
-        return serviceName + "/" + fileName;
-    }
-
     private MediaType determineMediaType(String fileName) {
-        if (fileName == null || !fileName.contains(".")) {
-            log.warn("O arquivo '{}' não possui uma extensão válida.", fileName);
-            throw new InvalidFileException("O arquivo não possui uma extensão válida.");
-        }
         String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
-        MediaType mediaType = EXTENSION_TO_MEDIA_TYPE_MAP.get(extension);
-        if (mediaType == null) {
-            log.warn("Tipo de mídia não suportado para a extensão '{}'", extension);
-            throw new UnsupportedMediaTypeException("Tipo de mídia não suportado: " + extension);
-        }
-        return mediaType;
+        return switch (extension) {
+            case "jpg", "jpeg", "png" -> MediaType.IMAGE;
+            case "mp4" -> MediaType.VIDEO;
+            case "mp3" -> MediaType.AUDIO;
+            default -> throw new UnsupportedMediaTypeException("Tipo de mídia não suportado: " + extension);
+        };
     }
 
-    private static final Map<String, MediaType> EXTENSION_TO_MEDIA_TYPE_MAP = Map.of(
-            "jpg", MediaType.IMAGE,
-            "jpeg", MediaType.IMAGE,
-            "png", MediaType.IMAGE,
-            "pdf", MediaType.IMAGE,
-            "mp4", MediaType.VIDEO,
-            "mp3", MediaType.AUDIO
-    );
+    /**
+     * Gera uma URL assinada do MinIO e retorna `MediaResponse`.
+     */
+    private MediaResponse generateMediaResponse(Media media) {
+        try {
+            // O nome completo do objeto no MinIO (serviceName + fileName)
+            String objectPath = media.getServiceName() + "/" + media.getFileName();
+
+            String signedUrl = minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(bucketName)
+                            .object(objectPath) // Caminho correto no MinIO
+                            .expiry(1, TimeUnit.HOURS)
+                            .build()
+            );
+
+            return new MediaResponse(
+                    media.getId(),
+                    media.getServiceName(),
+                    media.getFileName(), // Apenas o nome do arquivo, sem serviceName
+                    signedUrl // URL assinada correta
+            );
+        } catch (Exception e) {
+            throw new MinIOConnectionException("Erro ao gerar URL assinada da mídia.", e);
+        }
+    }
 
 
 }

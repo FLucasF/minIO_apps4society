@@ -1,17 +1,38 @@
 package com.apps4society.MinIO_API.service;
 
-import com.apps4society.MinIO_API.model.DTO.MediaDTO;
-import com.apps4society.MinIO_API.model.enums.EntityType;
-import com.apps4society.MinIO_API.model.enums.MediaType;
-import org.springframework.web.multipart.MultipartFile;
+import com.apps4society.MinIO_API.model.DTO.MediaRequest;
+import com.apps4society.MinIO_API.model.DTO.MediaResponse;
 
 import java.util.List;
-import java.util.Map;
 
 public interface MediaService {
-    MediaDTO saveMedia(String serviceName, MultipartFile file, String tag, EntityType entityType, Long uploadedBy);
-    Map<String, String> getMediaUrl(String serviceName, Long mediaId);
-    MediaDTO updateMedia(String serviceName, Long mediaId, EntityType entityType, String tag, MediaType mediaType, MultipartFile file);
-    MediaDTO disableMedia(String serviceName, Long mediaId);
-    List<Map<String, String>> listarMidiasComUrl(String serviceName, EntityType entityType, Long entityId);
+
+    /**
+     * Faz o upload de uma nova mídia para o MinIO e a salva no banco de dados.
+     * @param request Objeto contendo os dados do upload.
+     * @return MediaResponse com os detalhes da mídia salva.
+     */
+    MediaResponse uploadMedia(MediaRequest request);
+
+
+    String getMediaUrl(String serviceName, Long mediaId);    /**
+     * Lista todas as mídias ativas associadas a uma entidade específica.
+     * @param serviceName Nome do serviço ao qual as mídias pertencem.
+     * @param entityId ID da entidade associada às mídias.
+     * @return Lista de MediaResponse contendo URLs assinadas e informações das mídias.
+     */
+    List<MediaResponse> listMediaByEntity(String serviceName, Long entityId);
+
+    /**
+     * Atualiza um arquivo de mídia existente no MinIO e suas informações no banco de dados.
+     * @param mediaId ID da mídia a ser atualizada.
+     * @param request Objeto contendo os novos dados do upload.
+     * @return MediaResponse com os detalhes da mídia atualizada.
+     */
+    MediaResponse updateMedia(String serviceName, Long mediaId, MediaRequest request);
+    /**
+     * Desativa uma mídia, removendo seu acesso ativo e movendo o arquivo para a pasta de desativados no MinIO.
+     * @param mediaId ID da mídia a ser desativada.
+     */
+    void disableMedia(String serviceName, Long mediaId);
 }
