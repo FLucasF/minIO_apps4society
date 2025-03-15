@@ -5,13 +5,13 @@ minio:
   secret:
     key: ${MINIO_SECRET_KEY:minioadmin}
   bucket:
-    name: ${MINIO_BUCKET_NAME:dev-bucket}
+    name: ${MINIO_BUCKET_NAME:test-bucket}
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:12345}
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/testdb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: ${SPRING_DATASOURCE_USERNAME:test}
+    password: ${SPRING_DATASOURCE_PASSWORD:test}
   jpa:
     database-platform: org.hibernate.dialect.MySQLDialect
     properties:
@@ -19,7 +19,6 @@ spring:
     show-sql: true
     hibernate:
       ddl-auto: update
-
-#server:
-#  ssl:
-#    enabled: true
+  sql:
+    init:
+      mode: always

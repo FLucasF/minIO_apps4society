@@ -1,315 +1,328 @@
-//package com.apps4society.MinIO_API.integration;
-//
-//import com.apps4society.MinIO_API.model.entity.Media;
-//import com.apps4society.MinIO_API.service.MediaService;
-//import io.minio.BucketExistsArgs;
-//import io.minio.MakeBucketArgs;
-//import io.minio.MinioClient;
-//import io.restassured.RestAssured;
-//import io.restassured.http.ContentType;
-//import org.junit.jupiter.api.*;
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
-//import org.springframework.beans.factory.annotation.Autowired;
-//import org.springframework.boot.test.context.SpringBootTest;
-//import org.springframework.boot.test.web.server.LocalServerPort;
-//import org.springframework.test.context.ActiveProfiles;
-//import org.testcontainers.containers.GenericContainer;
-//import org.testcontainers.containers.MySQLContainer;
-//import org.testcontainers.junit.jupiter.Container;
-//import org.testcontainers.junit.jupiter.Testcontainers;
-//
-//import java.io.File;
-//import java.io.FileOutputStream;
-//import java.sql.Connection;
-//import java.sql.DriverManager;
-//import java.sql.ResultSet;
-//import java.sql.Statement;
-//import java.util.Map;
-//
-//import static io.restassured.RestAssured.given;
-//import static org.hamcrest.Matchers.*;
-//import static org.junit.jupiter.api.Assertions.*;
-//
-//@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-//@Testcontainers
-//@ActiveProfiles("test")
-//public class MediaIntegrationIT {
-//
-//    private static final Logger logger = LoggerFactory.getLogger(MediaIntegrationIT.class);
-//
-//    @LocalServerPort
-//    private int port;
-//
-//    @Autowired
-//    private MediaTestUtil mediaTestUtil;
-//
-//    @Container
-//    public static MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.0")
-//            .withDatabaseName("testdb")
-//            .withUsername("test")
-//            .withPassword("test");
-//
-//    @Container
-//    public static GenericContainer<?> minioContainer = new GenericContainer<>("minio/minio:latest")
-//            .withExposedPorts(9000)
-//            .withEnv("MINIO_ROOT_USER", "minioadmin")
-//            .withEnv("MINIO_ROOT_PASSWORD", "minioadmin")
-//            .withCommand("server /data");
-//
-//    @BeforeAll
-//    static void setup() {
-//        logger.info("Iniciando configuração dos containers");
-//        mysqlContainer.start();
-//        minioContainer.start();
-//        logger.info("Containers iniciados!");
-//
-//        String minioUrl = "http://" + minioContainer.getHost() + ":" + minioContainer.getMappedPort(9000);
-//        System.setProperty("minio.url", minioUrl);
-//
-//        int mysqlPort = mysqlContainer.getMappedPort(3306);
-//        System.setProperty("TESTCONTAINERS_MYSQL_PORT", String.valueOf(mysqlPort));
-//
-//        RestAssured.baseURI = "http://localhost";
-//
-//        logger.info("MySQL rodando em {}:{}", mysqlContainer.getHost(), mysqlPort);
-//        logger.info("MinIO rodando em {}", minioUrl);
-//
-//        verificarBancoDeDados();
-//        criarBucketMinio(minioUrl);
-//
-//    }
-//
-//    static void criarBucketMinio(String minioUrl) {
-//        try {
-//            MinioClient minioClient = MinioClient.builder()
-//                    .endpoint(minioUrl)
-//                    .credentials("minioadmin", "minioadmin")
-//                    .build();
-//
-//            String bucketName = "test-bucket";
-//
-//            boolean bucketExists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucketName).build());
-//            if (!bucketExists) {
-//                minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucketName).build());
-//                logger.info("Bucket '{}' criado com sucesso!", bucketName);
-//            } else {
-//                logger.info("Bucket '{}' já existe.", bucketName);
-//            }
-//        } catch (Exception e) {
-//            logger.error("Erro ao criar bucket no MinIO: ", e);
-//        }
-//    }
-//
-//    static void verificarBancoDeDados() {
-//        try (Connection connection = DriverManager.getConnection(mysqlContainer.getJdbcUrl(), "test", "test");
-//             Statement statement = connection.createStatement()) {
-//
-//            ResultSet resultSet = statement.executeQuery("SHOW TABLES");
-//            while (resultSet.next()) {
-//                logger.info("Tabela encontrada no banco de testes: {}", resultSet.getString(1));
-//            }
-//        } catch (Exception e) {
-//            logger.error("Erro ao verificar o banco de dados de teste: ", e);
-//        }
-//    }
-//
-//    @BeforeEach
-//    void setUpTest() {
-//        RestAssured.port = port;
-//        logger.info("Iniciando teste na porta: {}", port);
-//    }
-//
-//    @Test
-//    @DisplayName("Verificação do ambiente de testes")
-//    void testEnvironmentSetup() {
-//        logger.info("Testando se o ambiente de testes está configurado corretamente...");
-//        assertTrue(mysqlContainer.isRunning(), "O container do MySQL não está rodando.");
-//        assertTrue(minioContainer.isRunning(), "O container do MinIO não está rodando.");
-//        logger.info("Ambiente de testes configurado corretamente.");
-//    }
-//
-//    @Test
-//    @DisplayName("POST /api/media/post - Sucesso (201 CREATED)")
-//    void testSaveMedia_WithValidData_ShouldReturn201Created() {
-//        logger.info("Iniciando upload de mídia...");
-//
-//        String fileName = "test-image.jpg";
-//
-//        var response = given()
-//                .log().all()
-//                .multiPart("file", new File("src/test/resources/test-image.jpg"))
-//                .formParam("serviceName", "educaAPI")
-//                .formParam("tag", "profile")
-//                .formParam("entityType", "THEME")
-//                .formParam("uploadedBy", "1")
-//                .header("api-key", "123")
-//                .contentType(ContentType.MULTIPART)
-//                .when()
-//                .post("/api/media/post")
-//                .thenReturn();
-//
-//        logger.info("Resposta do servidor: {} - {}", response.getStatusCode(), response.getBody().asString());
-//
-//        response.then()
-//                .log().all()
-//                .statusCode(201)
-//                .body("id", notNullValue());
-//
-//        assertNotNull(response.jsonPath().get("fileName"), "O fileName retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("mediaType"), "O mediaType retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("tag"), "A tag retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("active"), "O active retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("uploadedBy"), "O uploadedBy retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("entityType"), "O entityType retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("serviceName"), "O serviceName retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("id"), "O id retornado não deveria ser nulo.");
-//
-//        assertEquals(201, response.getStatusCode(), "Código de status não corresponde ao esperado.");
-//        assertEquals("educaAPI", response.jsonPath().get("serviceName"), "O serviceName retornado não corresponde ao esperado.");
-//        assertEquals("profile", response.jsonPath().get("tag"), "A tag retornada não corresponde ao esperado.");
-//        assertEquals("THEME", response.jsonPath().get("entityType"), "O entityType retornado não corresponde ao esperado.");
-//        assertEquals(1L, response.jsonPath().getLong("uploadedBy"), "O uploadedBy retornado não corresponde ao esperado.");
-//        assertTrue(response.jsonPath().getBoolean("active"), "O active retornado não corresponde ao esperado.");
-//
-//        logger.info("Upload de mídia realizado com sucesso.");
-//
-//        mediaTestUtil.cleanupTestMedia(fileName);
-//        assertFalse(mediaTestUtil.checkFileExists(fileName), "A mídia não foi removida corretamente.");
-//    }
-//
-//    @Test
-//    @DisplayName("GET /api/media/get/{serviceName}/{mediaId} - Buscar URL assinada com mídia criada deve retornar 200 OK")
-//    void testGetMediaUrl_AfterUploadingMedia_ShouldReturn200OK() {
-//        logger.info("Criando mídia de teste...");
-//
-//        Map<String, Object> testMedia = mediaTestUtil.createTestMedia("educaAPI/test-image.png");
-//
-//        logger.info("Mídia criada: {}", testMedia);
-//
-//        logger.info("Solicitando URL assinada para mídia ID: {}", testMedia.get("id"));
-//
-//        var response = given()
-//                .log().all() // Logando a requisição para depuração
-//                .pathParam("serviceName", testMedia.get("serviceName"))
-//                .pathParam("mediaId", testMedia.get("id"))
-//                .header("api-key", "123")
-//                .when()
-//                .get("/api/media/get/{serviceName}/{mediaId}")
-//                .thenReturn();
-//
-//        response.then().log().all(); // Logando a resposta para verificar o retorno
-//
-//        assertEquals(200, response.getStatusCode(), "Código de status não corresponde ao esperado.");
-//        assertNotNull(response.jsonPath().get("url"), "A URL retornada não deveria ser nula.");
-//
-//        logger.info("URL assinada obtida com sucesso.");
-//
-//        // Cleanup - Remover a mídia após o teste
-//        mediaTestUtil.cleanupTestMedia((String) testMedia.get("fileName"));
-//        assertFalse(mediaTestUtil.checkFileExists((String) testMedia.get("fileName")), "A mídia não foi removida corretamente.");
-//    }
-//
-//
-//    @Test
-//    @DisplayName("PUT /api/media/update/{serviceName}/{mediaId} - Atualizar mídia existente deve retornar 200 OK")
-//    void testUpdateMedia_WithValidData_ShouldReturn200OK() throws Exception {
-//        logger.info("Criando mídia de teste...");
-//
-//        Map<String, Object> testMedia = mediaTestUtil.createTestMedia("educaAPI/test-image.png");
-//
-//        logger.info("Mídia criada: {}", testMedia);
-//
-//        logger.info("Verificando se o arquivo de atualização existe...");
-//        File updatedFile = new File("src/test/resources/test-image-updated.jpg");
-//
-//        if (!updatedFile.exists() || updatedFile.length() == 0) {
-//            logger.warn("⚠️ Arquivo não encontrado ou vazio! Criando arquivo temporário...");
-//            try (FileOutputStream fos = new FileOutputStream(updatedFile)) {
-//                fos.write("conteudo de teste".getBytes()); // Garante que o arquivo tem algum conteúdo
-//            }
-//        }
-//
-//        logger.info("Iniciando atualização de mídia ID: {}", testMedia.get("id"));
-//
-//        var response = given()
-//                .log().all() // Logando a requisição para depuração
-//                .pathParam("serviceName", testMedia.get("serviceName"))
-//                .pathParam("mediaId", testMedia.get("id"))
-//                .formParam("entityType", "THEME")
-//                .formParam("tag", "updated-profile")
-//                .formParam("mediaType", "IMAGE")
-//                .multiPart("file", updatedFile) // Arquivo garantido para o teste
-//                .header("api-key", "123")
-//                .contentType(ContentType.MULTIPART)
-//                .when()
-//                .put("/api/media/update/{serviceName}/{mediaId}")
-//                .thenReturn();
-//
-//        response.then().log().all(); // Logando a resposta para depuração
-//
-//        assertEquals(200, response.getStatusCode(), "Código de status não corresponde ao esperado.");
-//        assertNotNull(response.jsonPath().get("fileName"), "O fileName retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("mediaType"), "O mediaType retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("tag"), "A tag retornada não deveria ser nula.");
-//        assertNotNull(response.jsonPath().get("active"), "O active retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("uploadedBy"), "O uploadedBy retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("entityType"), "O entityType retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("serviceName"), "O serviceName retornado não deveria ser nulo.");
-//        assertNotNull(response.jsonPath().get("id"), "O id retornado não deveria ser nulo.");
-//
-//        assertEquals("educaAPI", response.jsonPath().get("serviceName"), "O serviceName retornado não corresponde ao esperado.");
-//        assertEquals("updated-profile", response.jsonPath().get("tag"), "A tag retornada não corresponde ao esperado.");
-//        assertEquals("THEME", response.jsonPath().get("entityType"), "O entityType retornado não corresponde ao esperado.");
-//        assertEquals(testMedia.get("uploadedBy"), response.jsonPath().getLong("uploadedBy"), "O uploadedBy retornado não corresponde ao esperado.");
-//        assertTrue(response.jsonPath().getBoolean("active"), "O active retornado não corresponde ao esperado.");
-//
-//        logger.info("✅ Mídia atualizada com sucesso.");
-//
-//        mediaTestUtil.cleanupTestMedia((String) testMedia.get("fileName"));
-//        assertFalse(mediaTestUtil.checkFileExists((String) testMedia.get("fileName")), "A mídia não foi removida corretamente.");
-//    }
-//
-//    @Test
-//    @DisplayName("DELETE /api/media/delete/{serviceName}/{mediaId} - Desabilitar mídia deve atualizar banco e bucket")
-//    void testDisableMedia_ShouldDisableInDatabaseAndBucket() {
-//        logger.info("Criando mídia de teste...");
-//
-//        Map<String, Object> testMedia = mediaTestUtil.createTestMedia("educaAPI/test-image.png");
-//
-//        logger.info("🟡 Mídia criada: {}", testMedia);
-//
-//        logger.info("Desabilitando mídia ID: {}", testMedia.get("id"));
-//
-//        var response = given()
-//                .log().all() // Logando a requisição para depuração
-//                .pathParam("serviceName", testMedia.get("serviceName"))
-//                .pathParam("mediaId", testMedia.get("id"))
-//                .header("api-key", "123")
-//                .when()
-//                .delete("/api/media/delete/{serviceName}/{mediaId}")
-//                .thenReturn();
-//
-//        response.then().log().all().statusCode(204); // Verifica apenas o status da resposta
-//
-//        Media mediaFromDb = mediaTestUtil.findMediaById((Long) testMedia.get("id"));
-//        assertNotNull(mediaFromDb, "A mídia deveria existir no banco.");
-//        assertFalse(mediaFromDb.isActive(), "A mídia deveria estar desativada no banco de dados.");
-//
-//        boolean existsInActiveFolder = mediaTestUtil.checkFileExists("educaAPI/test-image.png");
-//        boolean existsInDisabledFolder = mediaTestUtil.checkFileExists("arquivos_desativados/educaAPI/test-image.png");
-//
-//        assertFalse(existsInActiveFolder, "O arquivo ativo não deveria existir mais no MinIO.");
-//        assertTrue(existsInDisabledFolder, "O arquivo deveria estar movido para a pasta de desativados.");
-//
-//        logger.info("✅ Mídia desativada corretamente no banco e no MinIO.");
-//    }
-//
-//
-//
-//
-//
-//
-//
-//
-//}
+package com.apps4society.MinIO_API.integration;
+
+import io.minio.*;
+import io.restassured.RestAssured;
+import io.restassured.http.ContentType;
+import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.HttpStatus;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.util.Map;
+
+import static io.restassured.RestAssured.given;
+import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.matchesPattern;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+@Slf4j
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Testcontainers
+@ActiveProfiles("test")
+@ExtendWith(SpringExtension.class)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+public class MediaIntegrationIT {
+    // 🔹 Constantes reutilizáveis
+    protected static final String SERVICE_NAME = "educAPI";
+    protected static final Long UPLOADED_BY = 1L;
+    protected static final Long ENTITY_ID = 42L;
+    protected static final String API_KEY = "123";
+    protected static final String BUCKET_NAME = "test-bucket";
+    protected static final String TEST_IMAGE_NAME = "test-image.jpg";
+    protected static final String TEST_UPDATED_IMAGE_NAME = "test-image-updated.jpg";
+
+    @LocalServerPort
+    protected int port;
+
+    @Container
+    public static MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.0")
+            .withDatabaseName("testdb")
+            .withUsername("test")
+            .withPassword("test");
+
+    @Container
+    public static GenericContainer<?> minioContainer = new GenericContainer<>("minio/minio:latest")
+            .withExposedPorts(9000)
+            .withEnv("MINIO_ROOT_USER", "minioadmin")
+            .withEnv("MINIO_ROOT_PASSWORD", "minioadmin")
+            .withCommand("server /data");
+
+    @BeforeAll
+    static void setupAll() {
+        log.info("🚀 Iniciando containers de teste...");
+
+        mysqlContainer.start();
+        minioContainer.start();
+
+        log.info("✅ Containers rodando!");
+
+        // 🔹 Configuração do MinIO
+        String minioUrl = "http://" + minioContainer.getHost() + ":" + minioContainer.getMappedPort(9000);
+        System.setProperty("minio.url", minioUrl);
+        RestAssured.baseURI = "http://localhost";
+
+        criarBucketMinio(minioUrl);
+    }
+
+    /**
+     * 🔹 Injeta as propriedades no contexto Spring antes da inicialização.
+     */
+    @DynamicPropertySource
+    static void configureProperties(DynamicPropertyRegistry registry) {
+        String mysqlUrl = mysqlContainer.getJdbcUrl();
+        log.info("🔗 Definindo spring.datasource.url = {}", mysqlUrl);
+
+        registry.add("spring.datasource.url", mysqlContainer::getJdbcUrl);
+        registry.add("spring.datasource.username", mysqlContainer::getUsername);
+        registry.add("spring.datasource.password", mysqlContainer::getPassword);
+        registry.add("MYSQL_HOST", mysqlContainer::getHost);
+        registry.add("MYSQL_PORT", () -> mysqlContainer.getMappedPort(3306));
+    }
+
+    @BeforeEach
+    void setup() {
+        RestAssured.port = port;
+    }
+
+    static void criarBucketMinio(String minioUrl) {
+        try {
+            MinioClient minioClient = MinioClient.builder()
+                    .endpoint(minioUrl)
+                    .credentials("minioadmin", "minioadmin")
+                    .build();
+
+            if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(BUCKET_NAME).build())) {
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket(BUCKET_NAME).build());
+                log.info("✅ Bucket '{}' criado com sucesso!", BUCKET_NAME);
+            } else {
+                log.info("✅ Bucket '{}' já existe.", BUCKET_NAME);
+            }
+        } catch (Exception e) {
+            log.error("❌ Erro ao criar bucket no MinIO: ", e);
+        }
+    }
+
+    protected InputStream createImageFile() {
+        log.info("📸 Criando imagem de teste...");
+        byte[] fakeImage = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
+        return new ByteArrayInputStream(fakeImage);
+    }
+
+    protected Map<String, Object> createTestMedia() {
+        log.info("📤 Enviando mídia de teste...");
+
+        InputStream imageStream = createImageFile();
+
+        var response = given()
+                .multiPart("file", TEST_IMAGE_NAME, imageStream, "image/jpeg")
+                .formParam("serviceName", SERVICE_NAME)
+                .formParam("uploadedBy", UPLOADED_BY)
+                .formParam("entityId", ENTITY_ID)
+                .header("api-key", API_KEY)
+                .contentType("multipart/form-data")
+                .when()
+                .post("/api/media");
+
+        response.then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("id", notNullValue());
+
+        Long mediaId = response.jsonPath().getLong("id");
+        log.info("✅ Mídia criada com sucesso: ID {}", mediaId);
+
+        return Map.of(
+                "id", mediaId,
+                "serviceName", SERVICE_NAME,
+                "fileName", TEST_IMAGE_NAME,
+                "uploadedBy", UPLOADED_BY
+        );
+    }
+
+    protected void cleanupTestMedia(String fileName) {
+        log.info("🗑️ Removendo mídia de teste do MinIO: {}", fileName);
+
+        try {
+            MinioClient minioClient = MinioClient.builder()
+                    .endpoint(System.getProperty("minio.url"))
+                    .credentials("minioadmin", "minioadmin")
+                    .build();
+
+            minioClient.removeObject(
+                    RemoveObjectArgs.builder()
+                            .bucket(BUCKET_NAME)
+                            .object(fileName)
+                            .build()
+            );
+
+            log.info("✅ Mídia '{}' removida com sucesso.", fileName);
+        } catch (Exception e) {
+            log.error("❌ Erro ao remover mídia '{}': ", fileName, e);
+        }
+    }
+
+    @Test
+    @DisplayName("POST /api/media - Upload de mídia bem-sucedido (201 CREATED)")
+    void testUploadMedia_Success_ShouldReturn201() {
+        // 🔹 Criando e enviando mídia de teste
+        Map<String, Object> testMedia = createTestMedia();
+
+        // 🔹 Recuperando URL assinada da mídia enviada
+        given()
+                .pathParam("serviceName", testMedia.get("serviceName"))
+                .pathParam("mediaId", testMedia.get("id"))
+                .header("api-key", API_KEY)
+                .accept(ContentType.TEXT)  // 🔹 Indica que esperamos um 'text/plain'
+                .when()
+                .get("/api/media/{serviceName}/{mediaId}")
+                .then()
+                .statusCode(200) // 🔹 Deve retornar 200 OK
+                .contentType(ContentType.TEXT) // 🔹 Confirma que o retorno é `text/plain`
+                .body(not(emptyOrNullString())) // 🔹 Verifica se a resposta não é vazia
+                .body(matchesPattern("http.*")); // 🔹 Verifica se é uma URL válida (começa com http)
+
+        cleanupTestMedia(TEST_IMAGE_NAME); // 🔹 Remove a mídia após o teste
+    }
+
+    //---
+
+    @Test
+    @DisplayName("PUT /api/media/{serviceName}/{mediaId} - Atualizar mídia existente (200 OK)")
+    void testUpdateMedia_Success_ShouldReturn200() {
+        Map<String, Object> testMedia = createTestMedia(); // 🔹 Criando mídia de teste
+
+        InputStream updatedImageStream = createImageFile(); // 🔹 Criando imagem simulada para atualização
+
+        given()
+                .pathParam("serviceName", testMedia.get("serviceName"))
+                .pathParam("mediaId", testMedia.get("id"))
+                .formParam("uploadedBy", UPLOADED_BY)
+                .formParam("entityId", ENTITY_ID)
+                .multiPart("file", TEST_UPDATED_IMAGE_NAME, updatedImageStream, "image/jpeg")
+                .header("api-key", API_KEY)
+                .contentType(ContentType.MULTIPART)
+                .when()
+                .put("/api/media/{serviceName}/{mediaId}")
+                .then()
+                .statusCode(200)
+                .body("fileName", notNullValue());
+
+        cleanupTestMedia(TEST_UPDATED_IMAGE_NAME); // 🔹 Cleanup após o teste
+    }
+
+    @Test
+    @DisplayName("PUT /api/media/{serviceName}/{mediaId} - Mídia não encontrada (404 NOT FOUND)")
+    void testUpdateMedia_NotFound_ShouldReturn404() {
+        InputStream updatedImageStream = createImageFile(); // 🔹 Criando imagem simulada para atualização
+
+        given()
+                .pathParam("serviceName", SERVICE_NAME)
+                .pathParam("mediaId", 99999L) // 🔹 ID que não existe
+                .formParam("uploadedBy", UPLOADED_BY)
+                .formParam("entityId", ENTITY_ID)
+                .multiPart("file", TEST_UPDATED_IMAGE_NAME, updatedImageStream, "image/jpeg")
+                .header("api-key", API_KEY)
+                .contentType(ContentType.MULTIPART)
+                .when()
+                .put("/api/media/{serviceName}/{mediaId}")
+                .then()
+                .statusCode(404);
+    }
+
+    // ---
+
+    @Test
+    @DisplayName("GET /api/media/{serviceName}/{mediaId} - Buscar URL de mídia existente (200 OK)")
+    void testGetMediaUrl_Success_ShouldReturn200() {
+        // 🔹 Criando mídia de teste
+        Map<String, Object> testMedia = createTestMedia();
+
+        // 🔹 Buscando a URL da mídia enviada
+        given()
+                .pathParam("serviceName", testMedia.get("serviceName"))
+                .pathParam("mediaId", testMedia.get("id"))
+                .header("api-key", API_KEY)
+                .accept("text/plain") // 🔹 Aceita resposta `text/plain`
+                .when()
+                .get("/api/media/{serviceName}/{mediaId}")
+                .then()
+                .statusCode(200) // 🔹 Deve retornar 200 OK
+                .contentType("text/plain") // 🔹 Confirma que a resposta é `text/plain`
+                .body(not(emptyOrNullString())) // 🔹 Verifica que não está vazia
+                .body(matchesPattern("http.*")); // 🔹 Verifica que a resposta contém uma URL válida
+
+        // 🔹 Limpando a mídia após o teste
+        cleanupTestMedia(TEST_IMAGE_NAME);
+    }
+
+    @Test
+    @DisplayName("GET /api/media/{serviceName}/{mediaId} - Mídia não encontrada (404 NOT FOUND)")
+    void testGetMedia_NotFound_ShouldReturn404() {
+        given()
+                .pathParam("serviceName", SERVICE_NAME)
+                .pathParam("mediaId", 99999L) // ID inexistente
+                .header("api-key", API_KEY)
+                .when()
+                .get("/api/media/{serviceName}/{mediaId}")
+                .then()
+                .statusCode(404);
+    }
+
+    // --
+
+    @Test
+    @DisplayName("DELETE /api/media/{serviceName}/{mediaId} - Desativar mídia existente (204 No Content)")
+    void testDisableMedia_Success_ShouldReturn204() {
+        // 🔹 Criando mídia de teste
+        Map<String, Object> testMedia = createTestMedia();
+
+        // 🔹 Desativando a mídia
+        given()
+                .pathParam("serviceName", testMedia.get("serviceName"))
+                .pathParam("mediaId", testMedia.get("id"))
+                .header("api-key", API_KEY)
+                .when()
+                .delete("/api/media/{serviceName}/{mediaId}")
+                .then()
+                .statusCode(204); // ✅ 204 No Content indica sucesso
+
+        // 🔹 Tentando buscar a mídia no MinIO
+        int responseStatus = given()
+                .header("api-key", API_KEY)
+                .when()
+                .get("/api/media/{serviceName}/{mediaId}", testMedia.get("serviceName"), testMedia.get("id"))
+                .then()
+                .extract()
+                .statusCode();
+
+        // 🔹 O esperado é que a mídia não seja encontrada (404 NOT FOUND)
+        assertEquals(404, responseStatus, "A mídia ainda existe no MinIO após a desativação!");
+    }
+
+
+    @Test
+    @DisplayName("DELETE /api/media/{serviceName}/{mediaId} - Mídia não encontrada (404 NOT FOUND)")
+    void testDisableMedia_NotFound_ShouldReturn404() {
+        given()
+                .pathParam("serviceName", SERVICE_NAME)
+                .pathParam("mediaId", 99999L) // ID inexistente
+                .header("api-key", API_KEY)
+                .when()
+                .delete("/api/media/{serviceName}/{mediaId}")
+                .then()
+                .statusCode(404);
+    }
+}

@@ -13,7 +13,6 @@ public interface MediaRepository extends JpaRepository<Media, Long> {
     /**
      * Busca uma mídia ativa pelo ID.
      */
-    Optional<Media> findByIdAndActiveTrue(Long id);
     Optional<Media> findByIdAndServiceNameAndActiveTrue(Long id, String serviceName);
 
     /**

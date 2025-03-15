@@ -1,0 +1,69 @@
+package com.apps4society.MinIO_API.controller;
+
+import com.apps4society.MinIO_API.model.DTO.MediaRequest;
+import com.apps4society.MinIO_API.model.DTO.MediaResponse;
+import com.apps4society.MinIO_API.service.MediaService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.web.servlet.MockMvc;
+
+/**
+ * Base para os testes do MediaController.
+ * Define configurações comuns para reutilização e mantém os testes organizados.
+ */
+@ExtendWith(SpringExtension.class)
+@WebMvcTest(MediaController.class)
+@AutoConfigureMockMvc(addFilters = false)
+public abstract class BaseMediaControllerTest {
+
+    @Autowired
+    protected MockMvc mockMvc;
+
+    @MockBean
+    protected MediaService mediaService;
+
+    protected final String serviceName = "educAPI";
+    protected final Long uploadedBy = 1L;
+    protected final Long entityId = 42L;
+    protected final Long mediaId = 100L;
+    protected final String fileName = "test.png";
+    protected final String fileType = "image/png";
+    protected final String tag = "profile";
+    protected final String mediaUrl = "http://localhost:9000/educAPI/" + fileName;
+
+    protected MockMultipartFile validFile;
+    protected MockMultipartFile emptyFile;
+    protected MockMultipartFile fileWithoutName;
+
+    protected final Long nonExistingMediaId = 999L;
+
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+
+        validFile = new MockMultipartFile("file", fileName, fileType, "dummyContent".getBytes());
+        emptyFile = new MockMultipartFile("file", "empty.png", fileType, new byte[0]);
+        fileWithoutName = new MockMultipartFile("file", "", fileType, "dummyContent".getBytes());
+    }
+
+    /**
+     * Cria um `MediaRequest` para reutilização nos testes.
+     */
+    protected MediaRequest createMediaRequest(MockMultipartFile file) {
+        return new MediaRequest(serviceName, uploadedBy, entityId, file);
+    }
+
+    /**
+     * Cria um `MediaResponse` para reutilização nos testes.
+     */
+    protected MediaResponse createMediaResponse() {
+        return new MediaResponse(mediaId, serviceName, fileName, mediaUrl);
+    }
+}
