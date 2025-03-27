@@ -35,7 +35,6 @@ public class MediaControllerListTest {
     @Test
     @DisplayName("GET /api/media/lists/{serviceName}/{entityId} - Sucesso (200)")
     public void testListMediaByEntity_Success() throws Exception {
-        // Criando mídias fictícias para retorno
         List<MediaResponse> mediaList = List.of(
                 new MediaResponse(1L, serviceName, "file1.png", "http://localhost/media/file1.png"),
                 new MediaResponse(2L, serviceName, "file2.png", "http://localhost/media/file2.png")

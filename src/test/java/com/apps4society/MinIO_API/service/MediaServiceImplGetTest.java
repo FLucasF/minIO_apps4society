@@ -27,11 +27,10 @@ class MediaServiceImplGetTest extends BaseMediaServiceImplTest {
     void setup() {
         ReflectionTestUtils.setField(mediaService, "bucketName", "test-bucket");
 
-        // Criando um mock da mídia ativa
         mediaMock = Media.builder()
                 .id(mediaId)
                 .serviceName(serviceName)
-                .fileName("test-image.png") // Apenas o nome do arquivo
+                .fileName("test-image.png")
                 .mediaType(MediaType.IMAGE)
                 .active(true)
                 .build();
@@ -53,7 +52,6 @@ class MediaServiceImplGetTest extends BaseMediaServiceImplTest {
         when(mediaRepository.findByIdAndServiceNameAndActiveTrue(mediaId, serviceName))
                 .thenReturn(Optional.of(mediaMock));
 
-        // Mock para a URL assinada do MinIO
         String expectedUrl = "https://minio.example.com/educAPI/test-image.png";
         when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
                 .thenReturn(expectedUrl);
@@ -72,7 +70,6 @@ class MediaServiceImplGetTest extends BaseMediaServiceImplTest {
         when(mediaRepository.findByIdAndServiceNameAndActiveTrue(mediaId, serviceName))
                 .thenReturn(Optional.of(mediaMock));
 
-        // 🔥 Simular falha no MinIO lançando uma exceção realista
         when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
                 .thenThrow(new IOException("Erro simulado ao acessar MinIO"));
 

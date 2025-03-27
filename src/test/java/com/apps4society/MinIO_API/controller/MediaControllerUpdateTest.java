@@ -38,13 +38,10 @@ public class MediaControllerUpdateTest {
     @Test
     @DisplayName("PUT /api/media/{serviceName}/{mediaId} - Sucesso (200)")
     public void testUpdateMedia_Success() throws Exception {
-        // Criando um arquivo válido para atualização
         MockMultipartFile file = new MockMultipartFile("file", "updated.png", "image/png", "updatedContent".getBytes());
 
-        // Criando um objeto de resposta esperado
         MediaResponse response = new MediaResponse(mediaId, serviceName, "updated.png", "http://localhost/media/updated.png");
 
-        // Configurando o serviço para retornar a resposta esperada
         when(mediaService.updateMedia(eq(serviceName), eq(mediaId), any(MediaRequest.class)))
                 .thenReturn(response);
 
@@ -66,7 +63,6 @@ public class MediaControllerUpdateTest {
     public void testUpdateMedia_NotFound() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "updated.png", "image/png", "updatedContent".getBytes());
 
-        // 🔹 Simular o lançamento da exceção `MediaNotFoundException`
         when(mediaService.updateMedia(eq(serviceName), eq(mediaId), any(MediaRequest.class)))
                 .thenThrow(new MediaNotFoundException("Mídia não encontrada ou inativa."));
 
@@ -89,7 +85,7 @@ public class MediaControllerUpdateTest {
                         .param("uploadedBy", uploadedBy.toString())
                         .param("entityId", entityId.toString())
                         .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isBadRequest()); // Deve retornar 400
+                .andExpect(status().isBadRequest()); //deve retornar 400
     }
 
     @Test
@@ -101,7 +97,7 @@ public class MediaControllerUpdateTest {
                         .file(file)
                         .with(request -> { request.setMethod("PUT"); return request; })
                         .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isBadRequest()); // Deve retornar 400
+                .andExpect(status().isBadRequest()); //deve retornar 400
     }
 
     @Test
@@ -118,6 +114,6 @@ public class MediaControllerUpdateTest {
                         .param("uploadedBy", uploadedBy.toString())
                         .param("entityId", entityId.toString())
                         .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isInternalServerError()); // Deve retornar 500
+                .andExpect(status().isInternalServerError()); //deve retornar 500
     }
 }

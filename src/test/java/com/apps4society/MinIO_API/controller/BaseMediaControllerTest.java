@@ -53,16 +53,10 @@ public abstract class BaseMediaControllerTest {
         fileWithoutName = new MockMultipartFile("file", "", fileType, "dummyContent".getBytes());
     }
 
-    /**
-     * Cria um `MediaRequest` para reutilização nos testes.
-     */
     protected MediaRequest createMediaRequest(MockMultipartFile file) {
         return new MediaRequest(serviceName, uploadedBy, entityId, file);
     }
 
-    /**
-     * Cria um `MediaResponse` para reutilização nos testes.
-     */
     protected MediaResponse createMediaResponse() {
         return new MediaResponse(mediaId, serviceName, fileName, mediaUrl);
     }

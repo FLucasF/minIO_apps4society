@@ -47,12 +47,10 @@ public abstract class BaseMediaServiceImplTest {
 
         mediaService = new MediaServiceImpl(mediaRepository, mediaMapper, minioClient, minioConfig);
 
-        // 🔹 Criando os arquivos de teste uma única vez para todos os testes
         validFile = new MockMultipartFile("file", "updated-image.png", "image/png", "dummy".getBytes());
         emptyFile = new MockMultipartFile("file", "empty.png", "image/png", new byte[0]);
         fileWithoutName = new MockMultipartFile("file", "", "image/png", "dummy".getBytes());
 
-        // 🔹 Criando uma mídia simulada reutilizável
         existingMedia = Media.builder()
                 .id(mediaId)
                 .serviceName(serviceName)

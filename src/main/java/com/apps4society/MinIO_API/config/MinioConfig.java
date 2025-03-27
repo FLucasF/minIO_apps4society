@@ -22,6 +22,6 @@ public class MinioConfig {
     }
 
     public String getBucketName() {
-        return minioProperties.getBucketName(); // Método simples para acessar o bucket
+        return minioProperties.getBucketName();
     }
 }

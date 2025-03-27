@@ -24,7 +24,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
-    // NOVO: 400 BAD REQUEST para parâmetros ou partes ausentes
+    //400 BAD REQUEST para parâmetros ou partes ausentes
     @ExceptionHandler({MissingServletRequestParameterException.class, MissingServletRequestPartException.class})
     public ResponseEntity<ErrorResponse> handleMissingParams(Exception ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, "Parâmetro ausente: " + ex.getMessage(), request);
@@ -42,7 +42,7 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
-    // 409 CONFLICT – Adicionado para DuplicateFileException
+    // 409 CONFLICT
     @ExceptionHandler(DuplicateFileException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateFile(DuplicateFileException ex, HttpServletRequest request) {
         return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
@@ -85,7 +85,6 @@ public class GlobalExceptionHandler {
                 .body("Ocorreu um erro interno no servidor: " + e.getMessage());
     }
 
-    // Método genérico para construir respostas de erro
     private ResponseEntity<ErrorResponse> buildErrorResponse(HttpStatus status, String message, HttpServletRequest request) {
         ErrorResponse errorResponse = new ErrorResponse(status, message, request.getRequestURI());
         return ResponseEntity.status(status).body(errorResponse);

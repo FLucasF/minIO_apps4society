@@ -37,7 +37,7 @@ class MediaServiceImplUpdateTest extends BaseMediaServiceImplTest {
                 .id(mediaId)
                 .serviceName(serviceName)
                 .mediaType(MediaType.IMAGE)
-                .fileName("old-image.png") // Nome corrigido
+                .fileName("old-image.png")
                 .entityId(1001L)
                 .active(true)
                 .build();

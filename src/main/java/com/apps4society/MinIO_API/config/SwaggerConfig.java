@@ -20,7 +20,7 @@ public class SwaggerConfig {
                 .addSecurityItem(new SecurityRequirement().addList("API Key"))
                 .components(new io.swagger.v3.oas.models.Components()
                         .addSecuritySchemes("API Key", new SecurityScheme()
-                                .name("x-api-key")
+                                .name("x-api-key") //olhar mais sobre
                                 .type(SecurityScheme.Type.APIKEY)
                                 .in(SecurityScheme.In.HEADER)));
     }

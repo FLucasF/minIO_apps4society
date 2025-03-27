@@ -34,7 +34,7 @@ class MediaServiceImplDisableTest extends BaseMediaServiceImplTest {
                 .mediaType(MediaType.IMAGE)
                 .fileName("old-image.png")
                 .entityId(1001L)
-                .active(true) // Começa ativo
+                .active(true)
                 .build();
     }
 
@@ -54,25 +54,19 @@ class MediaServiceImplDisableTest extends BaseMediaServiceImplTest {
         when(mediaRepository.findByIdAndServiceNameAndActiveTrue(mediaId, serviceName))
                 .thenReturn(Optional.of(existingMedia));
 
-        // 🔥 CORREÇÃO: Substituir doNothing() por when().thenReturn() no copyObject()
         when(minioClient.copyObject(any(CopyObjectArgs.class)))
                 .thenReturn(mock(io.minio.ObjectWriteResponse.class));
 
-        // ✅ Esse está correto, pois removeObject() é void
         doNothing().when(minioClient).removeObject(any(RemoveObjectArgs.class));
 
-        // Capturar o objeto salvo
         ArgumentCaptor<Media> mediaCaptor = ArgumentCaptor.forClass(Media.class);
         when(mediaRepository.save(mediaCaptor.capture())).thenReturn(existingMedia);
 
-        // Executar a desativação
         mediaService.disableMedia(serviceName, mediaId);
 
-        // Verifica se o `active` foi atualizado corretamente
         Media savedMedia = mediaCaptor.getValue();
         assertFalse(savedMedia.isActive(), "A mídia deveria estar desativada após o método disableMedia.");
 
-        // Verifica chamadas nos mocks
         verify(mediaRepository, times(1)).findByIdAndServiceNameAndActiveTrue(mediaId, serviceName);
         verify(minioClient, times(1)).copyObject(any(CopyObjectArgs.class));
         verify(minioClient, times(1)).removeObject(any(RemoveObjectArgs.class));
@@ -85,7 +79,6 @@ class MediaServiceImplDisableTest extends BaseMediaServiceImplTest {
         when(mediaRepository.findByIdAndServiceNameAndActiveTrue(mediaId, serviceName))
                 .thenReturn(Optional.of(existingMedia));
 
-        // Simulando erro ao copiar o arquivo no MinIO
         doThrow(new RuntimeException("Erro simulado no MinIO"))
                 .when(minioClient).copyObject(any(CopyObjectArgs.class));
 
@@ -94,7 +87,6 @@ class MediaServiceImplDisableTest extends BaseMediaServiceImplTest {
 
         assertEquals("Erro ao mover mídia no armazenamento.", exception.getMessage());
 
-        // 📌 Verificar que o fluxo foi interrompido corretamente
         verify(mediaRepository, times(1)).findByIdAndServiceNameAndActiveTrue(mediaId, serviceName);
         verify(minioClient, times(1)).copyObject(any(CopyObjectArgs.class));
         verify(minioClient, never()).removeObject(any(RemoveObjectArgs.class)); // ❌ Não deve remover se falhar antes

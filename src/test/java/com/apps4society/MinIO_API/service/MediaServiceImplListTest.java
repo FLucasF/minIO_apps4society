@@ -18,7 +18,6 @@ class MediaServiceImplListTest extends BaseMediaServiceImplTest {
 
     @Test
     void testListMediaByEntity_successful() {
-        // Criando mocks das mídias associadas à entidade
         Media media1 = Media.builder()
                 .id(1L)
                 .serviceName(serviceName)
@@ -42,11 +41,10 @@ class MediaServiceImplListTest extends BaseMediaServiceImplTest {
         when(mediaRepository.findByServiceNameAndEntityIdAndActiveTrue(serviceName, entityId))
                 .thenReturn(mockMedias);
 
-        // Simulando o mapeamento para MediaResponse
         when(mediaMapper.toResponse(media1)).thenReturn(new MediaResponse(
                 media1.getId(),
                 media1.getServiceName(),
-                "image1.png", // Apenas o nome do arquivo
+                "image1.png",
                 "https://minio.example.com/educAPI/image1.png"
         ));
 
@@ -57,10 +55,8 @@ class MediaServiceImplListTest extends BaseMediaServiceImplTest {
                 "https://minio.example.com/educAPI/image2.png"
         ));
 
-        // Executando o método
         List<MediaResponse> result = mediaService.listMediaByEntity(serviceName, entityId);
 
-        // Validações
         assertNotNull(result);
         assertEquals(2, result.size());
 
@@ -74,7 +70,6 @@ class MediaServiceImplListTest extends BaseMediaServiceImplTest {
                 () -> assertEquals("image2.png", result.get(1).fileName())
         );
 
-        // Verifica chamadas
         verify(mediaRepository, times(1)).findByServiceNameAndEntityIdAndActiveTrue(serviceName, entityId);
         verify(mediaMapper, times(2)).toResponse(any(Media.class));
     }

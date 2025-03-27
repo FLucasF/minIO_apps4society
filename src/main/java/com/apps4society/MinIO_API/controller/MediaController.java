@@ -77,7 +77,7 @@ public class MediaController {
     @DeleteMapping("{serviceName}/{mediaId}")
     public ResponseEntity<Void> disableMedia(@PathVariable String serviceName, @PathVariable Long mediaId) {
         mediaService.disableMedia(serviceName, mediaId);
-        return ResponseEntity.noContent().build(); // ✅ 204 No Content para sucesso
+        return ResponseEntity.noContent().build();
     }
 
 }

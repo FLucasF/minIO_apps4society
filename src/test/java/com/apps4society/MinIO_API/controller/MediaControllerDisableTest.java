@@ -16,24 +16,22 @@ public class MediaControllerDisableTest extends BaseMediaControllerTest {
     @Test
     @DisplayName("DELETE /api/media/{serviceName}/{mediaId} - Sucesso (204)")
     public void testDisableMedia_Success() throws Exception {
-        // 🔹 Simula a desativação bem-sucedida da mídia
         doNothing().when(mediaService).disableMedia(eq(serviceName), eq(mediaId));
 
         mockMvc.perform(delete("/api/media/{serviceName}/{mediaId}", serviceName, mediaId)
                         .header("api-key", "123"))
-                .andExpect(status().isNoContent()); // ✅ Deve retornar 204 NO CONTENT
+                .andExpect(status().isNoContent()); //deve retornar 204
     }
 
     @Test
     @DisplayName("DELETE /api/media/{serviceName}/{mediaId} - Mídia não encontrada (404)")
     public void testDisableMedia_NotFound() throws Exception {
-        // 🔹 Simula a exceção `MediaNotFoundException`
         doThrow(new MediaNotFoundException("Mídia não encontrada ou inativa."))
                 .when(mediaService).disableMedia(eq(serviceName), eq(mediaId));
 
         mockMvc.perform(delete("/api/media/{serviceName}/{mediaId}", serviceName, mediaId)
                         .header("api-key", "123"))
-                .andExpect(status().isNotFound()) // ✅ Deve retornar 404 NOT FOUND
+                .andExpect(status().isNotFound()) //deve retornar 404 NOT FOUND
                 .andExpect(jsonPath("$.message").value("Mídia não encontrada ou inativa."));
 
     }

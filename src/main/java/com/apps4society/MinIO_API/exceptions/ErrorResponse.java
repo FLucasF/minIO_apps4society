@@ -8,14 +8,14 @@ import java.time.LocalDateTime;
 @Getter
 public class ErrorResponse {
     private final int status;
-    private final String error; // Nome do erro (ex: "Bad Request")
-    private final String message; // Detalhes do erro
-    private final String path; // Endpoint que gerou o erro
+    private final String error;
+    private final String message;
+    private final String path;
     private final LocalDateTime timestamp;
 
     public ErrorResponse(HttpStatus status, String message, String path) {
         this.status = status.value();
-        this.error = status.getReasonPhrase(); // Exemplo: "Bad Request", "Not Found"
+        this.error = status.getReasonPhrase();
         this.message = message;
         this.path = path;
         this.timestamp = LocalDateTime.now();

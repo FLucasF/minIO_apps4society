@@ -10,13 +10,10 @@ import java.util.Optional;
 @Repository
 public interface MediaRepository extends JpaRepository<Media, Long> {
 
-    /**
-     * Busca uma mídia ativa pelo ID.
-     */
     Optional<Media> findByIdAndServiceNameAndActiveTrue(Long id, String serviceName);
 
-    /**
-     * Lista todas as mídias ativas associadas a um serviço e uma entidade específica.
-     */
     List<Media> findByServiceNameAndEntityIdAndActiveTrue(String serviceName, Long entityId);
+
+    boolean existsByFileNameAndServiceName(String fileName, String serviceName);
+
 }

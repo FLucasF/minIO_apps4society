@@ -63,14 +63,13 @@ public class MediaIntegrationIT {
 
     @BeforeAll
     static void setupAll() {
-        log.info("🚀 Iniciando containers de teste...");
+        log.info("Iniciando containers de teste...");
 
         mysqlContainer.start();
         minioContainer.start();
 
         log.info("✅ Containers rodando!");
 
-        // 🔹 Configuração do MinIO
         String minioUrl = "http://" + minioContainer.getHost() + ":" + minioContainer.getMappedPort(9000);
         System.setProperty("minio.url", minioUrl);
         RestAssured.baseURI = "http://localhost";
@@ -78,13 +77,10 @@ public class MediaIntegrationIT {
         criarBucketMinio(minioUrl);
     }
 
-    /**
-     * 🔹 Injeta as propriedades no contexto Spring antes da inicialização.
-     */
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         String mysqlUrl = mysqlContainer.getJdbcUrl();
-        log.info("🔗 Definindo spring.datasource.url = {}", mysqlUrl);
+        log.info("Definindo spring.datasource.url = {}", mysqlUrl);
 
         registry.add("spring.datasource.url", mysqlContainer::getJdbcUrl);
         registry.add("spring.datasource.username", mysqlContainer::getUsername);
@@ -107,23 +103,23 @@ public class MediaIntegrationIT {
 
             if (!minioClient.bucketExists(BucketExistsArgs.builder().bucket(BUCKET_NAME).build())) {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(BUCKET_NAME).build());
-                log.info("✅ Bucket '{}' criado com sucesso!", BUCKET_NAME);
+                log.info("Bucket '{}' criado com sucesso!", BUCKET_NAME);
             } else {
-                log.info("✅ Bucket '{}' já existe.", BUCKET_NAME);
+                log.info("Bucket '{}' já existe.", BUCKET_NAME);
             }
         } catch (Exception e) {
-            log.error("❌ Erro ao criar bucket no MinIO: ", e);
+            log.error("Erro ao criar bucket no MinIO: ", e);
         }
     }
 
     protected InputStream createImageFile() {
-        log.info("📸 Criando imagem de teste...");
+        log.info("Criando imagem de teste.");
         byte[] fakeImage = new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9};
         return new ByteArrayInputStream(fakeImage);
     }
 
     protected Map<String, Object> createTestMedia() {
-        log.info("📤 Enviando mídia de teste...");
+        log.info("Enviando mídia de teste.");
 
         InputStream imageStream = createImageFile();
 
@@ -142,7 +138,7 @@ public class MediaIntegrationIT {
                 .body("id", notNullValue());
 
         Long mediaId = response.jsonPath().getLong("id");
-        log.info("✅ Mídia criada com sucesso: ID {}", mediaId);
+        log.info("Mídia criada com sucesso: ID {}", mediaId);
 
         return Map.of(
                 "id", mediaId,
@@ -153,7 +149,7 @@ public class MediaIntegrationIT {
     }
 
     protected void cleanupTestMedia(String fileName) {
-        log.info("🗑️ Removendo mídia de teste do MinIO: {}", fileName);
+        log.info("Removendo mídia de teste do MinIO: {}", fileName);
 
         try {
             MinioClient minioClient = MinioClient.builder()
@@ -168,33 +164,31 @@ public class MediaIntegrationIT {
                             .build()
             );
 
-            log.info("✅ Mídia '{}' removida com sucesso.", fileName);
+            log.info("Mídia '{}' removida com sucesso.", fileName);
         } catch (Exception e) {
-            log.error("❌ Erro ao remover mídia '{}': ", fileName, e);
+            log.error("Erro ao remover mídia '{}': ", fileName, e);
         }
     }
 
     @Test
     @DisplayName("POST /api/media - Upload de mídia bem-sucedido (201 CREATED)")
     void testUploadMedia_Success_ShouldReturn201() {
-        // 🔹 Criando e enviando mídia de teste
         Map<String, Object> testMedia = createTestMedia();
 
-        // 🔹 Recuperando URL assinada da mídia enviada
         given()
                 .pathParam("serviceName", testMedia.get("serviceName"))
                 .pathParam("mediaId", testMedia.get("id"))
                 .header("api-key", API_KEY)
-                .accept(ContentType.TEXT)  // 🔹 Indica que esperamos um 'text/plain'
+                .accept(ContentType.TEXT)  //
                 .when()
                 .get("/api/media/{serviceName}/{mediaId}")
                 .then()
-                .statusCode(200) // 🔹 Deve retornar 200 OK
-                .contentType(ContentType.TEXT) // 🔹 Confirma que o retorno é `text/plain`
-                .body(not(emptyOrNullString())) // 🔹 Verifica se a resposta não é vazia
-                .body(matchesPattern("http.*")); // 🔹 Verifica se é uma URL válida (começa com http)
+                .statusCode(200)
+                .contentType(ContentType.TEXT)
+                .body(not(emptyOrNullString()))
+                .body(matchesPattern("http.*"));
 
-        cleanupTestMedia(TEST_IMAGE_NAME); // 🔹 Remove a mídia após o teste
+        cleanupTestMedia(TEST_IMAGE_NAME);
     }
 
     //---
@@ -202,9 +196,9 @@ public class MediaIntegrationIT {
     @Test
     @DisplayName("PUT /api/media/{serviceName}/{mediaId} - Atualizar mídia existente (200 OK)")
     void testUpdateMedia_Success_ShouldReturn200() {
-        Map<String, Object> testMedia = createTestMedia(); // 🔹 Criando mídia de teste
+        Map<String, Object> testMedia = createTestMedia();
 
-        InputStream updatedImageStream = createImageFile(); // 🔹 Criando imagem simulada para atualização
+        InputStream updatedImageStream = createImageFile();
 
         given()
                 .pathParam("serviceName", testMedia.get("serviceName"))
@@ -220,17 +214,17 @@ public class MediaIntegrationIT {
                 .statusCode(200)
                 .body("fileName", notNullValue());
 
-        cleanupTestMedia(TEST_UPDATED_IMAGE_NAME); // 🔹 Cleanup após o teste
+        cleanupTestMedia(TEST_UPDATED_IMAGE_NAME);
     }
 
     @Test
     @DisplayName("PUT /api/media/{serviceName}/{mediaId} - Mídia não encontrada (404 NOT FOUND)")
     void testUpdateMedia_NotFound_ShouldReturn404() {
-        InputStream updatedImageStream = createImageFile(); // 🔹 Criando imagem simulada para atualização
+        InputStream updatedImageStream = createImageFile();
 
         given()
                 .pathParam("serviceName", SERVICE_NAME)
-                .pathParam("mediaId", 99999L) // 🔹 ID que não existe
+                .pathParam("mediaId", 99999L)
                 .formParam("uploadedBy", UPLOADED_BY)
                 .formParam("entityId", ENTITY_ID)
                 .multiPart("file", TEST_UPDATED_IMAGE_NAME, updatedImageStream, "image/jpeg")
@@ -255,16 +249,15 @@ public class MediaIntegrationIT {
                 .pathParam("serviceName", testMedia.get("serviceName"))
                 .pathParam("mediaId", testMedia.get("id"))
                 .header("api-key", API_KEY)
-                .accept("text/plain") // 🔹 Aceita resposta `text/plain`
+                .accept("text/plain")
                 .when()
                 .get("/api/media/{serviceName}/{mediaId}")
                 .then()
-                .statusCode(200) // 🔹 Deve retornar 200 OK
-                .contentType("text/plain") // 🔹 Confirma que a resposta é `text/plain`
-                .body(not(emptyOrNullString())) // 🔹 Verifica que não está vazia
-                .body(matchesPattern("http.*")); // 🔹 Verifica que a resposta contém uma URL válida
+                .statusCode(200)
+                .contentType("text/plain")
+                .body(not(emptyOrNullString()))
+                .body(matchesPattern("http.*"));
 
-        // 🔹 Limpando a mídia após o teste
         cleanupTestMedia(TEST_IMAGE_NAME);
     }
 
@@ -273,7 +266,7 @@ public class MediaIntegrationIT {
     void testGetMedia_NotFound_ShouldReturn404() {
         given()
                 .pathParam("serviceName", SERVICE_NAME)
-                .pathParam("mediaId", 99999L) // ID inexistente
+                .pathParam("mediaId", 99999L)
                 .header("api-key", API_KEY)
                 .when()
                 .get("/api/media/{serviceName}/{mediaId}")
@@ -286,10 +279,8 @@ public class MediaIntegrationIT {
     @Test
     @DisplayName("DELETE /api/media/{serviceName}/{mediaId} - Desativar mídia existente (204 No Content)")
     void testDisableMedia_Success_ShouldReturn204() {
-        // 🔹 Criando mídia de teste
         Map<String, Object> testMedia = createTestMedia();
 
-        // 🔹 Desativando a mídia
         given()
                 .pathParam("serviceName", testMedia.get("serviceName"))
                 .pathParam("mediaId", testMedia.get("id"))
@@ -297,9 +288,8 @@ public class MediaIntegrationIT {
                 .when()
                 .delete("/api/media/{serviceName}/{mediaId}")
                 .then()
-                .statusCode(204); // ✅ 204 No Content indica sucesso
+                .statusCode(204);
 
-        // 🔹 Tentando buscar a mídia no MinIO
         int responseStatus = given()
                 .header("api-key", API_KEY)
                 .when()
@@ -308,7 +298,6 @@ public class MediaIntegrationIT {
                 .extract()
                 .statusCode();
 
-        // 🔹 O esperado é que a mídia não seja encontrada (404 NOT FOUND)
         assertEquals(404, responseStatus, "A mídia ainda existe no MinIO após a desativação!");
     }
 

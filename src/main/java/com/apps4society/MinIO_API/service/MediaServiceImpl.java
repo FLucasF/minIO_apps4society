@@ -33,6 +33,14 @@ public class MediaServiceImpl implements MediaService {
         this.bucketName = minioConfig.getBucketName();
     }
 
+    /**
+     * Realiza o upload de um arquivo de mídia no MinIO e registra a mídia no banco de dados.
+     * Caso o arquivo seja inválido, lança uma exceção.
+     * @param request Objeto contendo os dados do arquivo a ser enviado.
+     * @return MediaResponse com informações da mídia salva.
+     * @throws InvalidFileException Caso o arquivo seja inválido.
+     * @throws FileStorageException Caso ocorra erro ao salvar no MinIO ou no banco de dados.
+     */
     @Override
     public MediaResponse uploadMedia(MediaRequest request) {
         log.info("Iniciando upload de mídia | Entidade: '{}' | Serviço: '{}'", request.entityId(), request.serviceName());
@@ -73,6 +81,15 @@ public class MediaServiceImpl implements MediaService {
         }
     }
 
+    /**
+     * Retorna a URL assinada de um arquivo de mídia armazenado no MinIO.
+     * A URL tem validade de 1 hora e pode ser usada para acessar o arquivo diretamente.
+     * @param serviceName Nome do serviço associado à mídia.
+     * @param mediaId ID da mídia para a qual a URL será gerada.
+     * @return URL assinada para acesso à mídia.
+     * @throws MediaNotFoundException Caso a mídia não seja encontrada ou esteja inativa.
+     * @throws MinIOConnectionException Caso ocorra erro ao gerar a URL assinada.
+     */
     @Override
     public String getMediaUrl(String serviceName, Long mediaId) {
         log.info("Buscando URL da mídia ID '{}' no serviço '{}'", mediaId, serviceName);
@@ -95,6 +112,12 @@ public class MediaServiceImpl implements MediaService {
         }
     }
 
+    /**
+     * Lista todas as mídias ativas associadas a uma entidade específica.
+     * @param serviceName Nome do serviço ao qual as mídias pertencem.
+     * @param entityId ID da entidade associada às mídias.
+     * @return Lista de MediaResponse contendo URLs assinadas e informações das mídias.
+     */
     @Override
     public List<MediaResponse> listMediaByEntity(String serviceName, Long entityId) {
         log.info("Buscando mídias para Entidade '{}' | Serviço '{}'", entityId, serviceName);
@@ -110,7 +133,17 @@ public class MediaServiceImpl implements MediaService {
         return midias.stream().map(mediaMapper::toResponse).collect(Collectors.toList());
     }
 
-
+    /**
+     * Atualiza uma mídia existente no MinIO e no banco de dados com um novo arquivo.
+     * A mídia antiga será desabilitada no MinIO, mas permanecerá ativa no banco de dados.
+     * @param serviceName Nome do serviço associado à mídia.
+     * @param mediaId ID da mídia que será atualizada.
+     * @param request Objeto contendo os dados do novo arquivo a ser enviado.
+     * @return MediaResponse com informações da mídia atualizada.
+     * @throws MediaNotFoundException Caso a mídia não seja encontrada ou esteja inativa.
+     * @throws InvalidFileException Caso o arquivo enviado para atualização seja inválido.
+     * @throws FileStorageException Caso ocorra erro ao salvar no MinIO ou no banco de dados.
+     */
     @Override
     public MediaResponse updateMedia(String serviceName, Long mediaId, MediaRequest request) {
         log.info("Atualizando mídia ID '{}' no serviço '{}'", mediaId, serviceName);
@@ -139,6 +172,30 @@ public class MediaServiceImpl implements MediaService {
                             .build()
             );
 
+            String oldObjectName = serviceName + "/" + media.getFileName();
+            log.info("Desabilitando arquivo antigo '{}'", oldObjectName);
+            try {
+                // Mover o arquivo antigo para a pasta de desativados no MinIO
+                String disabledObjectName = "arquivos_desativados/" + oldObjectName;
+                minioClient.copyObject(
+                        CopyObjectArgs.builder()
+                                .bucket(bucketName)
+                                .object(disabledObjectName)
+                                .source(CopySource.builder().bucket(bucketName).object(oldObjectName).build())
+                                .build()
+                );
+                minioClient.removeObject(
+                        RemoveObjectArgs.builder()
+                                .bucket(bucketName)
+                                .object(oldObjectName)
+                                .build()
+                );
+                log.info("Arquivo antigo '{}' movido para '{}'", oldObjectName, disabledObjectName);
+            } catch (Exception e) {
+                log.error("Erro ao mover mídia antiga no MinIO", e);
+                throw new FileStorageException("Erro ao desabilitar mídia antiga no MinIO.", e);
+            }
+
             media.setFileName(newFileName);
             media.setMediaType(newMediaType);
             Media updatedMedia = mediaRepository.save(media);
@@ -149,7 +206,14 @@ public class MediaServiceImpl implements MediaService {
         }
     }
 
-
+    /**
+     * Desativa uma mídia existente e move o arquivo para uma pasta de "arquivos desativados" no MinIO.
+     * A mídia também é marcada como inativa no banco de dados.
+     * @param serviceName Nome do serviço associado à mídia.
+     * @param mediaId ID da mídia que será desativada.
+     * @throws MediaNotFoundException Caso a mídia não seja encontrada ou esteja inativa.
+     * @throws FileStorageException Caso ocorra erro ao mover a mídia no MinIO.
+     */
     @Override
     @Transactional
     public void disableMedia(String serviceName, Long mediaId) {
@@ -193,6 +257,9 @@ public class MediaServiceImpl implements MediaService {
 
     /**
      * Determina o tipo de mídia com base na extensão do arquivo.
+     * @param fileName Nome do arquivo para o qual o tipo será determinado.
+     * @return MediaType correspondente ao tipo de mídia (imagem, vídeo, áudio).
+     * @throws UnsupportedMediaTypeException Caso o tipo de mídia não seja suportado.
      */
     private MediaType determineMediaType(String fileName) {
         String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();

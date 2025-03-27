@@ -14,8 +14,14 @@ public interface MediaService {
      */
     MediaResponse uploadMedia(MediaRequest request);
 
-
+    /**
+     * Retorna a URL de acesso a uma mídia específica.
+     * @param serviceName Nome do serviço ao qual a mídia pertence.
+     * @param mediaId ID da mídia a ser acessada.
+     * @return URL de acesso à mídia.
+     */
     String getMediaUrl(String serviceName, Long mediaId);    /**
+
      * Lista todas as mídias ativas associadas a uma entidade específica.
      * @param serviceName Nome do serviço ao qual as mídias pertencem.
      * @param entityId ID da entidade associada às mídias.
@@ -30,6 +36,7 @@ public interface MediaService {
      * @return MediaResponse com os detalhes da mídia atualizada.
      */
     MediaResponse updateMedia(String serviceName, Long mediaId, MediaRequest request);
+
     /**
      * Desativa uma mídia, removendo seu acesso ativo e movendo o arquivo para a pasta de desativados no MinIO.
      * @param mediaId ID da mídia a ser desativada.

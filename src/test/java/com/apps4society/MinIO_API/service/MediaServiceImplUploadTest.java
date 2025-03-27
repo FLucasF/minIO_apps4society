@@ -34,10 +34,10 @@ class MediaServiceImplUploadTest extends BaseMediaServiceImplTest {
 
         // Criando um MediaRequest válido
         mediaRequest = new MediaRequest(
-                "educAPI", // serviceName
-                42L,       // uploadedBy
-                1001L,     // entityId
-                file       // file
+                "educAPI",
+                42L,
+                1001L,
+                file
         );
     }
 
@@ -88,23 +88,18 @@ class MediaServiceImplUploadTest extends BaseMediaServiceImplTest {
 
     @Test
     void testUploadMedia_successful() throws Exception {
-        // Simulando a resposta do MinIO
         when(minioClient.putObject(any(PutObjectArgs.class))).thenReturn(mock(ObjectWriteResponse.class));
 
-        // Criando uma mídia simulada salva no banco
         Media savedMedia = new Media(1L, "educAPI", MediaType.IMAGE, "educAPI/test-image.png", 1001L, true);
         when(mediaRepository.save(any(Media.class))).thenReturn(savedMedia);
 
-        // Criando um mock da resposta esperada
         MediaResponse expectedResponse = new MediaResponse(
                 1L, "educAPI", "test-image.png", "https://minio.example.com/educAPI/test-image.png"
         );
         when(mediaMapper.toResponse(savedMedia)).thenReturn(expectedResponse);
 
-        // Executando o método
         MediaResponse result = mediaService.uploadMedia(mediaRequest);
 
-        // Validações dos atributos retornados
         assertAll("Validando resposta do upload",
                 () -> assertEquals(expectedResponse.id(), result.id()),
                 () -> assertEquals(expectedResponse.serviceName(), result.serviceName()),
@@ -112,7 +107,6 @@ class MediaServiceImplUploadTest extends BaseMediaServiceImplTest {
                 () -> assertEquals(expectedResponse.url(), result.url())
         );
 
-        // Verificando se os métodos foram chamados corretamente
         verify(minioClient, times(1)).putObject(any(PutObjectArgs.class));
         verify(mediaRepository, times(1)).save(any(Media.class));
     }
