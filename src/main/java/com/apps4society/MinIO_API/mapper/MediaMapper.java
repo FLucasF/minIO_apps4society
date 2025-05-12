@@ -10,10 +10,9 @@ import org.mapstruct.Named;
 @Mapper(componentModel = "spring")
 public interface MediaMapper {
 
-    @Mapping(target = "id", ignore = true) // O ID será gerado pelo banco
-    @Mapping(target = "active", constant = "true") // Define como ativo por padrão
-    Media toEntity(MediaRequest request);
-
+    @Mapping(target = "entityId", source = "entityId")
+    @Mapping(target = "serviceName", source = "serviceName")
+    @Mapping(target = "fileName", source = "fileName")
     MediaResponse toResponse(Media media);
 
 }

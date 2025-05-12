@@ -14,10 +14,6 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 
-/**
- * Base para os testes do MediaController.
- * Define configurações comuns para reutilização e mantém os testes organizados.
- */
 @ExtendWith(SpringExtension.class)
 @WebMvcTest(MediaController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -35,26 +31,20 @@ public abstract class BaseMediaControllerTest {
     protected final Long mediaId = 100L;
     protected final String fileName = "test.png";
     protected final String fileType = "image/png";
-    protected final String tag = "profile";
     protected final String mediaUrl = "http://localhost:9000/educAPI/" + fileName;
 
     protected MockMultipartFile validFile;
     protected MockMultipartFile emptyFile;
-    protected MockMultipartFile fileWithoutName;
-
-    protected final Long nonExistingMediaId = 999L;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-
         validFile = new MockMultipartFile("file", fileName, fileType, "dummyContent".getBytes());
         emptyFile = new MockMultipartFile("file", "empty.png", fileType, new byte[0]);
-        fileWithoutName = new MockMultipartFile("file", "", fileType, "dummyContent".getBytes());
     }
 
-    protected MediaRequest createMediaRequest(MockMultipartFile file) {
-        return new MediaRequest(serviceName, uploadedBy, entityId, file);
+    protected MediaRequest createMediaRequest() {
+        return new MediaRequest(serviceName, uploadedBy);
     }
 
     protected MediaResponse createMediaResponse() {

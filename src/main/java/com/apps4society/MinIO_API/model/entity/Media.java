@@ -10,14 +10,11 @@ import lombok.*;
 @Table(name = "media")
 @Getter
 @Setter
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class Media {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long entityId;
 
     @Column(name = "service_name", nullable = false)
     private String serviceName;
@@ -30,11 +27,20 @@ public class Media {
     @Column(name = "file_name", nullable = false)
     private String fileName;
 
-    @Column(name = "entity_id", nullable = false)
-    private Long entityId; // Identifica a entidade à qual a mídia está associada
+    @Column(name = "uploadedBy_id", nullable = false)
+    private Long uploadedBy;
 
     @Column(name = "active", nullable = false)
     private boolean active = true;
+
+    public Media(Long uploadedBy, String fileName, String serviceName, MediaType mediaType) {
+        this.uploadedBy = uploadedBy;
+        this.fileName = fileName;
+        this.serviceName = serviceName;
+        this.mediaType = mediaType;
+    }
+
+    public Media(){}
 
     public void disable() {
         this.active = false;

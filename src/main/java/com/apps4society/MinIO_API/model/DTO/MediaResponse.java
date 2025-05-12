@@ -8,7 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record MediaResponse(
 
         @Schema(description = "Identificador único da mídia.", example = "1")
-        Long id,
+        Long entityId,
 
         @Schema(description = "Nome do serviço ao qual a mídia pertence.", example = "educAPI")
         String serviceName,

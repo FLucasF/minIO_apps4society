@@ -4,6 +4,7 @@ import com.apps4society.MinIO_API.exceptions.MediaNotFoundException;
 import com.apps4society.MinIO_API.model.DTO.MediaRequest;
 import com.apps4society.MinIO_API.model.DTO.MediaResponse;
 import com.apps4society.MinIO_API.service.MediaService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +13,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.mock.web.MockPart;
 import org.springframework.test.web.servlet.MockMvc;
+import org.testcontainers.shaded.com.fasterxml.jackson.core.JsonProcessingException;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -31,89 +34,141 @@ public class MediaControllerUpdateTest {
     private MediaService mediaService;
 
     private final String serviceName = "educAPI";
-    private final Long mediaId = 100L;
-    private final Long uploadedBy = 1L;
     private final Long entityId = 42L;
+    private final Long uploadedBy = 1L;
 
     @Test
-    @DisplayName("PUT /api/media/{serviceName}/{mediaId} - Sucesso (200)")
-    public void testUpdateMedia_Success() throws Exception {
+    @DisplayName("PUT /api/media/{entityId} - Sucesso (200)")
+    public void testUpdateMedia_Success() throws Exception, JsonProcessingException {
         MockMultipartFile file = new MockMultipartFile("file", "updated.png", "image/png", "updatedContent".getBytes());
 
-        MediaResponse response = new MediaResponse(mediaId, serviceName, "updated.png", "http://localhost/media/updated.png");
+        MediaRequest mediaRequest = new MediaRequest(serviceName, uploadedBy);
 
-        when(mediaService.updateMedia(eq(serviceName), eq(mediaId), any(MediaRequest.class)))
+        MediaResponse response = new MediaResponse(entityId, serviceName, "updated.png", "http://localhost/media/updated.png");
+
+        when(mediaService.updateMedia(eq(entityId), eq(mediaRequest), eq(file)))
                 .thenReturn(response);
 
-        mockMvc.perform(multipart("/api/media/{serviceName}/{mediaId}", serviceName, mediaId)
+        String mediaRequestJson = new ObjectMapper().writeValueAsString(mediaRequest);
+
+        MockMultipartFile mediaRequestPart = new MockMultipartFile(
+                "mediaRequest",
+                "mediaRequest.json",
+                "application/json",
+                mediaRequestJson.getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/media/{entityId}", entityId)
                         .file(file)
-                        .with(request -> { request.setMethod("PUT"); return request; }) // Define o método como PUT
+                        .file(mediaRequestPart)
                         .param("uploadedBy", uploadedBy.toString())
-                        .param("entityId", entityId.toString())
+                        .param("serviceName", serviceName)
+                        .with(request -> {
+                            request.setMethod("PUT");
+                            return request;
+                        })
                         .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isOk())  // Deve retornar 200
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(mediaId))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.entityId").value(entityId))
                 .andExpect(jsonPath("$.serviceName").value(serviceName))
-                .andExpect(jsonPath("$.fileName").value("updated.png"));
+                .andExpect(jsonPath("$.fileName").value("updated.png"))
+                .andExpect(jsonPath("$.url").value("http://localhost/media/updated.png"));
     }
 
+
+
     @Test
-    @DisplayName("PUT /api/media/{serviceName}/{mediaId} - Mídia não encontrada (404)")
+    @DisplayName("PUT /api/media/{entityId} - Mídia não encontrada (404)")
     public void testUpdateMedia_NotFound() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "updated.png", "image/png", "updatedContent".getBytes());
 
-        when(mediaService.updateMedia(eq(serviceName), eq(mediaId), any(MediaRequest.class)))
+        MediaRequest mediaRequest = new MediaRequest(serviceName, uploadedBy);
+
+        when(mediaService.updateMedia(eq(entityId), eq(mediaRequest), eq(file)))
                 .thenThrow(new MediaNotFoundException("Mídia não encontrada ou inativa."));
 
-        mockMvc.perform(multipart("/api/media/{serviceName}/{mediaId}", serviceName, mediaId)
+        String mediaRequestJson = new ObjectMapper().writeValueAsString(mediaRequest);
+
+        MockMultipartFile mediaRequestPart = new MockMultipartFile(
+                "mediaRequest",
+                "mediaRequest.json",
+                "application/json",
+                mediaRequestJson.getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/media/{entityId}", entityId)
                         .file(file)
-                        .with(request -> { request.setMethod("PUT"); return request; })
+                        .file(mediaRequestPart)
                         .param("uploadedBy", uploadedBy.toString())
-                        .param("entityId", entityId.toString())
-                        .contentType(MediaType.MULTIPART_FORM_DATA))
+                        .param("serviceName", serviceName)
+                        .with(request -> {
+                            request.setMethod("PUT");
+                            return request;
+                        })
+                        .contentType("multipart/form-data"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value("Mídia não encontrada ou inativa."));
+                .andExpect(jsonPath("$.message").value("Mídia não encontrada ou inativa."));  // Verificando a mensagem de erro
     }
 
 
+
     @Test
-    @DisplayName("PUT /api/media/{serviceName}/{mediaId} - Arquivo ausente (400)")
+    @DisplayName("PUT /api/media/{entityId} - Arquivo ausente (400)")
     public void testUpdateMedia_MissingFile() throws Exception {
-        mockMvc.perform(multipart("/api/media/{serviceName}/{mediaId}", serviceName, mediaId)
-                        .with(request -> { request.setMethod("PUT"); return request; })
+        mockMvc.perform(multipart("/api/media/{entityId}", entityId)
+                        .with(request -> {
+                            request.setMethod("PUT");
+                            return request;
+                        })
                         .param("uploadedBy", uploadedBy.toString())
-                        .param("entityId", entityId.toString())
+                        .param("serviceName", serviceName)
                         .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isBadRequest()); //deve retornar 400
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("PUT /api/media/{serviceName}/{mediaId} - Parâmetros obrigatórios ausentes (400)")
+    @DisplayName("PUT /api/media/{entityId} - Parâmetros obrigatórios ausentes (400)")
     public void testUpdateMedia_MissingParams() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "updated.png", "image/png", "updatedContent".getBytes());
 
-        mockMvc.perform(multipart("/api/media/{serviceName}/{mediaId}", serviceName, mediaId)
+        mockMvc.perform(multipart("/api/media/{entityId}", entityId)
                         .file(file)
-                        .with(request -> { request.setMethod("PUT"); return request; })
+                        .with(request -> {
+                            request.setMethod("PUT");
+                            return request;
+                        })
                         .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isBadRequest()); //deve retornar 400
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    @DisplayName("PUT /api/media/{serviceName}/{mediaId} - Erro interno no serviço (500)")
+    @DisplayName("PUT /api/media/{entityId} - Erro interno no serviço (500)")
     public void testUpdateMedia_InternalServerError() throws Exception {
         MockMultipartFile file = new MockMultipartFile("file", "updated.png", "image/png", "updatedContent".getBytes());
 
-        when(mediaService.updateMedia(eq(serviceName), eq(mediaId), any(MediaRequest.class)))
+        MediaRequest mediaRequest = new MediaRequest(serviceName, uploadedBy);
+
+        when(mediaService.updateMedia(eq(entityId), eq(mediaRequest), eq(file)))
                 .thenThrow(new RuntimeException("Erro inesperado"));
 
-        mockMvc.perform(multipart("/api/media/{serviceName}/{mediaId}", serviceName, mediaId)
+        String mediaRequestJson = new ObjectMapper().writeValueAsString(mediaRequest);
+
+        MockMultipartFile mediaRequestPart = new MockMultipartFile(
+                "mediaRequest",
+                "mediaRequest.json",
+                "application/json",
+                mediaRequestJson.getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/media/{entityId}", entityId)
                         .file(file)
-                        .with(request -> { request.setMethod("PUT"); return request; })
-                        .param("uploadedBy", uploadedBy.toString())
-                        .param("entityId", entityId.toString())
+                        .file(mediaRequestPart)
+                        .with(request -> {
+                            request.setMethod("PUT");
+                            return request;
+                        })
                         .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isInternalServerError()); //deve retornar 500
+                .andExpect(status().isInternalServerError());
     }
 }

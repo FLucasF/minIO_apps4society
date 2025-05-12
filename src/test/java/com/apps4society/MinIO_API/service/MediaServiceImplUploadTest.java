@@ -7,9 +7,9 @@ import com.apps4society.MinIO_API.model.DTO.MediaRequest;
 import com.apps4society.MinIO_API.model.DTO.MediaResponse;
 import com.apps4society.MinIO_API.model.entity.Media;
 import com.apps4society.MinIO_API.model.enums.MediaType;
-import io.minio.MinioClient;
-import io.minio.PutObjectArgs;
 import io.minio.ObjectWriteResponse;
+import io.minio.PutObjectArgs;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+@Slf4j
 class MediaServiceImplUploadTest extends BaseMediaServiceImplTest {
 
     private MockMultipartFile file;
@@ -29,53 +30,49 @@ class MediaServiceImplUploadTest extends BaseMediaServiceImplTest {
     void setup() {
         ReflectionTestUtils.setField(mediaService, "bucketName", "test-bucket");
 
-        // Simulando um arquivo válido
         file = new MockMultipartFile("file", "test-image.png", "image/png", "dummy".getBytes());
 
-        // Criando um MediaRequest válido
         mediaRequest = new MediaRequest(
-                "educAPI",
-                42L,
-                1001L,
-                file
+                "educAPI", // serviceName
+                42L
         );
     }
 
     @Test
     void testUploadMedia_nullFile_throwsInvalidFileException() {
-        MediaRequest requestSemArquivo = new MediaRequest("educAPI", 42L, 1001L, null);
+        MediaRequest requestSemArquivo = new MediaRequest("educAPI", 42L);
 
-        assertThrows(NullPointerException.class, () -> mediaService.uploadMedia(requestSemArquivo));
+        assertThrows(NullPointerException.class, () -> mediaService.uploadMedia(requestSemArquivo, null));
     }
 
     @Test
     void testUploadMedia_emptyFile_throwsInvalidFileException() {
         MockMultipartFile emptyFile = new MockMultipartFile("file", "empty.png", "image/png", new byte[0]);
-        MediaRequest requestComArquivoVazio = new MediaRequest("educAPI", 42L, 1001L, emptyFile);
+        MediaRequest requestComArquivoVazio = new MediaRequest("educAPI", 42L);
 
-        assertThrows(InvalidFileException.class, () -> mediaService.uploadMedia(requestComArquivoVazio));
+        assertThrows(InvalidFileException.class, () -> mediaService.uploadMedia(requestComArquivoVazio, emptyFile));
     }
 
     @Test
-    void testUploadMedia_nullServiceName_throwsInvalidFileException() {
-        MediaRequest requestSemService = new MediaRequest(null, 42L, 1001L, file);
+    void testUploadMedia_nullServiceName_throwsFileStorageException() {
+        MediaRequest requestSemService = new MediaRequest(null, 42L);
 
-        assertThrows(FileStorageException.class, () -> mediaService.uploadMedia(requestSemService));
+        assertThrows(FileStorageException.class, () -> mediaService.uploadMedia(requestSemService, file));
     }
 
     @Test
-    void testUploadMedia_emptyServiceName_throwsInvalidFileException() {
-        MediaRequest requestComServiceVazio = new MediaRequest("", 42L, 1001L, file);
+    void testUploadMedia_emptyServiceName_throwsFileStorageException() {
+        MediaRequest requestComServiceVazio = new MediaRequest("", 42L);
 
-        assertThrows(FileStorageException.class, () -> mediaService.uploadMedia(requestComServiceVazio));
+        assertThrows(FileStorageException.class, () -> mediaService.uploadMedia(requestComServiceVazio, file));
     }
 
     @Test
-    void testUploadMedia_invalidFileName_throwsInvalidFileException() {
+    void testUploadMedia_invalidFileName_throwsUnsupportedMediaTypeException() {
         MockMultipartFile invalidFile = new MockMultipartFile("file", "", "image/png", "dummy".getBytes());
-        MediaRequest requestArquivoSemNome = new MediaRequest("educAPI", 42L, 1001L, invalidFile);
+        MediaRequest requestArquivoSemNome = new MediaRequest("educAPI", 42L);
 
-        assertThrows(UnsupportedMediaTypeException.class, () -> mediaService.uploadMedia(requestArquivoSemNome));
+        assertThrows(UnsupportedMediaTypeException.class, () -> mediaService.uploadMedia(requestArquivoSemNome, invalidFile));
     }
 
     @Test
@@ -83,31 +80,56 @@ class MediaServiceImplUploadTest extends BaseMediaServiceImplTest {
         when(minioClient.putObject(any(PutObjectArgs.class)))
                 .thenThrow(new RuntimeException("Erro ao salvar no MinIO"));
 
-        assertThrows(FileStorageException.class, () -> mediaService.uploadMedia(mediaRequest));
+        assertThrows(FileStorageException.class, () -> mediaService.uploadMedia(mediaRequest, file));
     }
 
     @Test
     void testUploadMedia_successful() throws Exception {
-        when(minioClient.putObject(any(PutObjectArgs.class))).thenReturn(mock(ObjectWriteResponse.class));
+        when(minioClient.putObject(any(PutObjectArgs.class)))
+                .thenReturn(mock(ObjectWriteResponse.class));
+        log.info("Mock do MinIO configurado.");
 
-        Media savedMedia = new Media(1L, "educAPI", MediaType.IMAGE, "educAPI/test-image.png", 1001L, true);
-        when(mediaRepository.save(any(Media.class))).thenReturn(savedMedia);
+        Media mediaMock = new Media();
+        mediaMock.setEntityId(4L);
+        mediaMock.setFileName("Screenshot from 2025-03-28 17-33-28.png");
+        mediaMock.setServiceName("educAPI");
+
+        when(mediaRepository.save(any(Media.class))).thenReturn(mediaMock);
+        log.info("Mock do mediaRepository configurado.");
 
         MediaResponse expectedResponse = new MediaResponse(
-                1L, "educAPI", "test-image.png", "https://minio.example.com/educAPI/test-image.png"
+                mediaMock.getEntityId(),
+                mediaMock.getServiceName(),
+                mediaMock.getFileName(),
+                "https://minio.example.com/educAPI/Screenshot%20from%202025-03-28%2017-33-28.png"
         );
-        when(mediaMapper.toResponse(savedMedia)).thenReturn(expectedResponse);
+        when(mediaMapper.toResponse(any(Media.class))).thenReturn(expectedResponse);
+        log.info("Mock do mediaMapper configurado.");
 
-        MediaResponse result = mediaService.uploadMedia(mediaRequest);
+        log.info("Executando o método uploadMedia...");
+        MediaResponse actualResponse = mediaService.uploadMedia(mediaRequest, file);
 
-        assertAll("Validando resposta do upload",
-                () -> assertEquals(expectedResponse.id(), result.id()),
-                () -> assertEquals(expectedResponse.serviceName(), result.serviceName()),
-                () -> assertEquals(expectedResponse.fileName(), result.fileName()),
-                () -> assertEquals(expectedResponse.url(), result.url())
-        );
+        log.info("Verificando se a resposta não é nula...");
+        assertNotNull(actualResponse, "A resposta não pode ser nula");
 
+        log.info("Validando a resposta...");
+        assertEquals(expectedResponse.entityId(), actualResponse.entityId(), "ID da mídia não corresponde");
+        assertEquals(expectedResponse.serviceName(), actualResponse.serviceName(), "Nome do serviço não corresponde");
+        assertEquals(expectedResponse.fileName(), actualResponse.fileName(), "Nome do arquivo não corresponde");
+        assertEquals(expectedResponse.url(), actualResponse.url(), "URL não corresponde");
+
+        log.info("Verificando as interações com os mocks...");
         verify(minioClient, times(1)).putObject(any(PutObjectArgs.class));
         verify(mediaRepository, times(1)).save(any(Media.class));
+        verify(mediaMapper, times(1)).toResponse(any(Media.class));
+
+        log.info("Teste testUploadMedia_successful concluído com sucesso.");
     }
+
+
+
+
+
+
+
 }

@@ -7,8 +7,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -18,6 +24,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/media")
 @SecurityRequirement(name = "API Key")
+@Validated
 public class MediaController {
 
     private final MediaService mediaService;
@@ -28,46 +35,38 @@ public class MediaController {
 
     @Operation(summary = "Upload de um arquivo", description = "Faz o upload de um arquivo para o MinIO e salva as informações no banco de dados.",
             responses = {@ApiResponse(responseCode = "201", description = "Arquivo enviado com sucesso.")})
-    @PostMapping()
-    public ResponseEntity<MediaResponse> uploadFile(@RequestParam("serviceName") String serviceName,
-                                                    @RequestParam("uploadedBy") Long uploadedBy,
-                                                    @RequestParam("entityId") Long entityId,
-                                                    @RequestPart("file") MultipartFile file) {
-        MediaRequest request = new MediaRequest(serviceName, uploadedBy, entityId, file);
-        MediaResponse response = mediaService.uploadMedia(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<MediaResponse> uploadFile(
+            @Valid @RequestPart("mediaRequest") MediaRequest mediaRequest,
+            @RequestPart("file") MultipartFile file) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(mediaService.uploadMedia(mediaRequest, file));
     }
 
     @GetMapping("{serviceName}/{mediaId}")
     public ResponseEntity<String> getMedia(
             @PathVariable("serviceName") String serviceName,
             @PathVariable("mediaId") Long mediaId) {
-
-        String mediaUrl = mediaService.getMediaUrl(serviceName, mediaId);
-        return ResponseEntity.ok(mediaUrl);
+        return ResponseEntity.ok(mediaService.getMediaUrl(serviceName, mediaId));
     }
 
-
-    @Operation(summary = "Listar mídias por entidade",
-            description = "Lista todas as mídias associadas a uma entidade específica.")
-    @GetMapping("/lists/{serviceName}/{entityId}")  // Verifique se a URL está correta
+    @Operation(summary = "Listar mídias por entidade e usuário",
+            description = "Lista todas as mídias associadas a uma entidade específica e que foram feitas por um usuário específico.")
+    @GetMapping("/lists/{serviceName}/{uploadedBy}")
     public ResponseEntity<List<MediaResponse>> listMediaByEntity(
             @PathVariable("serviceName") String serviceName,
-            @PathVariable("entityId") Long entityId) {
-        return ResponseEntity.ok(mediaService.listMediaByEntity(serviceName, entityId));
+            @PathVariable("uploadedBy") Long uploadedBy) {
+        return ResponseEntity.ok(mediaService.listMediaByUploadedBy(serviceName, uploadedBy));
     }
 
     @Operation(summary = "Atualizar mídia", description = "Atualiza um arquivo no MinIO e suas informações no banco de dados.",
             responses = {@ApiResponse(responseCode = "200", description = "Mídia atualizada com sucesso."),
                     @ApiResponse(responseCode = "404", description = "Mídia não encontrada.")})
-    @PutMapping("{serviceName}/{mediaId}")
-    public ResponseEntity<MediaResponse> updateMedia(@PathVariable("serviceName") String serviceName,
-                                                     @PathVariable("mediaId") Long mediaId,
-                                                     @RequestParam("uploadedBy") Long uploadedBy,
-                                                     @RequestParam("entityId") Long entityId,
-                                                     @RequestPart("file") MultipartFile file) {
-        MediaRequest request = new MediaRequest(serviceName, uploadedBy, entityId, file);
-        return ResponseEntity.ok(mediaService.updateMedia(serviceName, mediaId, request));
+    @PutMapping("/{entityId}")
+    public ResponseEntity<MediaResponse> updateMedia(
+            @PathVariable("entityId") Long entityId,
+            @Valid @RequestPart("mediaRequest") MediaRequest mediaRequest,
+            @RequestPart("file") MultipartFile file) {
+        return ResponseEntity.ok(mediaService.updateMedia(entityId, mediaRequest, file));
     }
 
 

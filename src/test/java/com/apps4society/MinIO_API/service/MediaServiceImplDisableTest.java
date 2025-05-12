@@ -20,27 +20,9 @@ import static org.mockito.Mockito.*;
 
 class MediaServiceImplDisableTest extends BaseMediaServiceImplTest {
 
-    private final String serviceName = "educAPI";
-    private final Long mediaId = 1L;
-    private Media existingMedia;
-
-    @BeforeEach
-    void init() {
-        ReflectionTestUtils.setField(mediaService, "bucketName", "test-bucket");
-
-        existingMedia = Media.builder()
-                .id(mediaId)
-                .serviceName(serviceName)
-                .mediaType(MediaType.IMAGE)
-                .fileName("old-image.png")
-                .entityId(1001L)
-                .active(true)
-                .build();
-    }
-
     @Test
     void testDisableMedia_mediaNotFound_throwsMediaNotFoundException() {
-        when(mediaRepository.findByIdAndServiceNameAndActiveTrue(mediaId, serviceName))
+        when(mediaRepository.findByEntityIdAndServiceNameAndActiveTrue(mediaId, serviceName))
                 .thenReturn(Optional.empty());
 
         MediaNotFoundException exception = assertThrows(MediaNotFoundException.class, () ->
@@ -51,7 +33,7 @@ class MediaServiceImplDisableTest extends BaseMediaServiceImplTest {
 
     @Test
     void testDisableMedia_successful() throws Exception {
-        when(mediaRepository.findByIdAndServiceNameAndActiveTrue(mediaId, serviceName))
+        when(mediaRepository.findByEntityIdAndServiceNameAndActiveTrue(mediaId, serviceName))
                 .thenReturn(Optional.of(existingMedia));
 
         when(minioClient.copyObject(any(CopyObjectArgs.class)))
@@ -67,7 +49,7 @@ class MediaServiceImplDisableTest extends BaseMediaServiceImplTest {
         Media savedMedia = mediaCaptor.getValue();
         assertFalse(savedMedia.isActive(), "A mídia deveria estar desativada após o método disableMedia.");
 
-        verify(mediaRepository, times(1)).findByIdAndServiceNameAndActiveTrue(mediaId, serviceName);
+        verify(mediaRepository, times(1)).findByEntityIdAndServiceNameAndActiveTrue(mediaId, serviceName);
         verify(minioClient, times(1)).copyObject(any(CopyObjectArgs.class));
         verify(minioClient, times(1)).removeObject(any(RemoveObjectArgs.class));
         verify(mediaRepository, times(1)).save(any(Media.class));
@@ -76,7 +58,7 @@ class MediaServiceImplDisableTest extends BaseMediaServiceImplTest {
 
     @Test
     void testDisableMedia_minioFailure_throwsFileStorageException() throws Exception {
-        when(mediaRepository.findByIdAndServiceNameAndActiveTrue(mediaId, serviceName))
+        when(mediaRepository.findByEntityIdAndServiceNameAndActiveTrue(mediaId, serviceName))
                 .thenReturn(Optional.of(existingMedia));
 
         doThrow(new RuntimeException("Erro simulado no MinIO"))
@@ -87,10 +69,10 @@ class MediaServiceImplDisableTest extends BaseMediaServiceImplTest {
 
         assertEquals("Erro ao mover mídia no armazenamento.", exception.getMessage());
 
-        verify(mediaRepository, times(1)).findByIdAndServiceNameAndActiveTrue(mediaId, serviceName);
+        verify(mediaRepository, times(1)).findByEntityIdAndServiceNameAndActiveTrue(mediaId, serviceName);
         verify(minioClient, times(1)).copyObject(any(CopyObjectArgs.class));
-        verify(minioClient, never()).removeObject(any(RemoveObjectArgs.class)); // ❌ Não deve remover se falhar antes
-        verify(mediaRepository, never()).save(any(Media.class)); // ❌ Não deve salvar no banco se falhar antes
+        verify(minioClient, never()).removeObject(any(RemoveObjectArgs.class));
+        verify(mediaRepository, never()).save(any(Media.class));
     }
 
 }

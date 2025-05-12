@@ -3,12 +3,10 @@ package com.apps4society.MinIO_API.controller;
 import com.apps4society.MinIO_API.exceptions.MediaNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.MediaType;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 public class MediaControllerDisableTest extends BaseMediaControllerTest {
@@ -20,7 +18,7 @@ public class MediaControllerDisableTest extends BaseMediaControllerTest {
 
         mockMvc.perform(delete("/api/media/{serviceName}/{mediaId}", serviceName, mediaId)
                         .header("api-key", "123"))
-                .andExpect(status().isNoContent()); //deve retornar 204
+                .andExpect(status().isNoContent());
     }
 
     @Test

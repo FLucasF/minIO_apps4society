@@ -16,6 +16,7 @@ import static org.mockito.Mockito.when;
 
 public abstract class BaseMediaServiceImplTest {
 
+    // Mocked dependencies
     @Mock
     protected MediaRepository mediaRepository;
 
@@ -28,36 +29,36 @@ public abstract class BaseMediaServiceImplTest {
     @Mock
     protected MinioConfig minioConfig;
 
+    // Service under test
     protected MediaServiceImpl mediaService;
 
-    // 🔹 Arquivos de teste reutilizáveis
+    // Test file samples
     protected MockMultipartFile validFile;
     protected MockMultipartFile emptyFile;
     protected MockMultipartFile fileWithoutName;
 
-    // 🔹 Mídia simulada reutilizável
+    // Reusable Media entity
     protected final String serviceName = "educAPI";
     protected final Long mediaId = 1L;
     protected Media existingMedia;
 
     @BeforeEach
     void setUp() {
+        // Initialize mocks
         MockitoAnnotations.openMocks(this);
+
+        // Mock the MinioConfig bucket name
         when(minioConfig.getBucketName()).thenReturn("test-bucket");
 
+        // Instantiate the service under test
         mediaService = new MediaServiceImpl(mediaRepository, mediaMapper, minioClient, minioConfig);
 
+        // Initialize test files
         validFile = new MockMultipartFile("file", "updated-image.png", "image/png", "dummy".getBytes());
         emptyFile = new MockMultipartFile("file", "empty.png", "image/png", new byte[0]);
         fileWithoutName = new MockMultipartFile("file", "", "image/png", "dummy".getBytes());
 
-        existingMedia = Media.builder()
-                .id(mediaId)
-                .serviceName(serviceName)
-                .mediaType(MediaType.IMAGE)
-                .fileName("old-image.png")
-                .entityId(1001L)
-                .active(true)
-                .build();
+        existingMedia = new Media(42L, "old-image.png", "educAPI", MediaType.IMAGE);
+
     }
 }
